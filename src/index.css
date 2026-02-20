@@ -1,0 +1,294 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ================================================================
+   METAFLOW ANALYTICS — DESIGN SYSTEM
+   Premium dark-first SaaS dashboard
+   All colors in HSL format
+================================================================ */
+
+@layer base {
+  :root {
+    /* ── Brand ── */
+    --brand: 214 100% 60%;
+    --brand-glow: 214 100% 70%;
+    --brand-dim: 214 80% 45%;
+
+    /* ── Backgrounds ── */
+    --background: 222 47% 4%;
+    --background-elevated: 222 40% 7%;
+    --background-card: 220 35% 9%;
+    --background-card-hover: 220 32% 12%;
+
+    /* ── Foreground ── */
+    --foreground: 214 30% 94%;
+    --foreground-muted: 215 20% 60%;
+    --foreground-subtle: 215 15% 40%;
+
+    /* ── Shadcn tokens (mapped to dark theme) ── */
+    --card: 220 35% 9%;
+    --card-foreground: 214 30% 94%;
+    --popover: 220 35% 9%;
+    --popover-foreground: 214 30% 94%;
+    --primary: 214 100% 60%;
+    --primary-foreground: 222 47% 4%;
+    --secondary: 220 32% 14%;
+    --secondary-foreground: 214 30% 90%;
+    --muted: 220 32% 12%;
+    --muted-foreground: 215 18% 52%;
+    --accent: 214 100% 60%;
+    --accent-foreground: 222 47% 4%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 25% 14%;
+    --input: 220 25% 14%;
+    --ring: 214 100% 60%;
+    --radius: 0.75rem;
+
+    /* ── Semantic metric colors ── */
+    --metric-positive: 142 71% 45%;
+    --metric-negative: 0 84% 60%;
+    --metric-warning: 38 92% 50%;
+    --metric-neutral: 215 20% 60%;
+
+    /* ── Chart colors ── */
+    --chart-1: 214 100% 60%;
+    --chart-2: 142 71% 45%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 280 68% 60%;
+    --chart-5: 0 84% 60%;
+
+    /* ── Sidebar ── */
+    --sidebar-background: 222 50% 5%;
+    --sidebar-foreground: 215 20% 65%;
+    --sidebar-primary: 214 100% 60%;
+    --sidebar-primary-foreground: 222 47% 4%;
+    --sidebar-accent: 220 32% 12%;
+    --sidebar-accent-foreground: 214 30% 90%;
+    --sidebar-border: 220 25% 11%;
+    --sidebar-ring: 214 100% 60%;
+
+    /* ── Shadows & glows ── */
+    --shadow-card: 0 4px 24px -4px hsl(222 47% 2% / 0.8);
+    --shadow-brand: 0 0 24px -4px hsl(214 100% 60% / 0.4);
+    --glow-positive: 0 0 16px -2px hsl(142 71% 45% / 0.3);
+    --glow-negative: 0 0 16px -2px hsl(0 84% 60% / 0.3);
+
+    /* ── Gradients ── */
+    --gradient-brand: linear-gradient(135deg, hsl(214 100% 60%), hsl(240 100% 65%));
+    --gradient-positive: linear-gradient(135deg, hsl(142 71% 45%), hsl(160 71% 40%));
+    --gradient-card: linear-gradient(145deg, hsl(220 35% 10%), hsl(220 30% 8%));
+    --gradient-sidebar: linear-gradient(180deg, hsl(222 50% 5%), hsl(222 45% 4%));
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground));
+  }
+}
+
+@layer components {
+  /* ── KPI Card ── */
+  .kpi-card {
+    background: var(--gradient-card);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .kpi-card:hover {
+    border-color: hsl(var(--brand) / 0.4);
+    box-shadow: var(--shadow-card), 0 0 0 1px hsl(var(--brand) / 0.1);
+  }
+
+  /* ── Chart Card ── */
+  .chart-card {
+    background: hsl(var(--background-card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
+  }
+
+  /* ── Metric positive/negative ── */
+  .metric-up {
+    color: hsl(var(--metric-positive));
+  }
+  .metric-down {
+    color: hsl(var(--metric-negative));
+  }
+  .metric-neutral {
+    color: hsl(var(--metric-neutral));
+  }
+
+  /* ── Alert badges ── */
+  .alert-critical {
+    background: hsl(0 84% 60% / 0.12);
+    border: 1px solid hsl(0 84% 60% / 0.3);
+    color: hsl(0 84% 70%);
+  }
+  .alert-warning {
+    background: hsl(38 92% 50% / 0.12);
+    border: 1px solid hsl(38 92% 50% / 0.3);
+    color: hsl(38 92% 60%);
+  }
+  .alert-healthy {
+    background: hsl(142 71% 45% / 0.12);
+    border: 1px solid hsl(142 71% 45% / 0.3);
+    color: hsl(142 71% 55%);
+  }
+
+  /* ── Brand gradient text ── */
+  .gradient-text {
+    background: var(--gradient-brand);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Glass card ── */
+  .glass-card {
+    background: hsl(220 35% 9% / 0.8);
+    backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+  }
+
+  /* ── Sidebar nav item ── */
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: hsl(var(--sidebar-foreground));
+    transition: all 0.15s;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .nav-item:hover {
+    background: hsl(var(--sidebar-accent));
+    color: hsl(var(--foreground));
+  }
+  .nav-item.active {
+    background: hsl(var(--brand) / 0.15);
+    color: hsl(var(--brand));
+    border: 1px solid hsl(var(--brand) / 0.2);
+  }
+  .nav-item.active svg {
+    color: hsl(var(--brand));
+  }
+
+  /* ── Status badge ── */
+  .status-active {
+    background: hsl(142 71% 45% / 0.15);
+    color: hsl(142 71% 55%);
+    border: 1px solid hsl(142 71% 45% / 0.3);
+  }
+  .status-paused {
+    background: hsl(38 92% 50% / 0.12);
+    color: hsl(38 92% 60%);
+    border: 1px solid hsl(38 92% 50% / 0.3);
+  }
+
+  /* ── Progress bar ── */
+  .progress-bar {
+    height: 6px;
+    background: hsl(var(--muted));
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--gradient-brand);
+    border-radius: 9999px;
+    transition: width 0.6s ease;
+  }
+  .progress-fill.danger {
+    background: linear-gradient(90deg, hsl(38 92% 50%), hsl(0 84% 60%));
+  }
+
+  /* ── AI Insight box ── */
+  .ai-insight-box {
+    background: linear-gradient(135deg, hsl(214 100% 60% / 0.08), hsl(240 100% 65% / 0.05));
+    border: 1px solid hsl(214 100% 60% / 0.2);
+    border-radius: var(--radius);
+    position: relative;
+    overflow: hidden;
+  }
+  .ai-insight-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--gradient-brand);
+  }
+
+  /* ── Table ── */
+  .data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.875rem;
+  }
+  .data-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: hsl(var(--muted-foreground));
+    border-bottom: 1px solid hsl(var(--border));
+  }
+  .data-table td {
+    padding: 0.875rem 1rem;
+    color: hsl(var(--foreground));
+    border-bottom: 1px solid hsl(var(--border) / 0.5);
+  }
+  .data-table tr:hover td {
+    background: hsl(var(--muted) / 0.4);
+  }
+  .data-table tr:last-child td {
+    border-bottom: none;
+  }
+}
