@@ -1,6 +1,5 @@
-import { Menu, ChevronDown, Calendar, RefreshCw } from "lucide-react";
+import { Menu, ChevronDown, Calendar, RefreshCw, Wifi, WifiOff } from "lucide-react";
 import { useDashboard } from "./Layout";
-import { mockClients } from "@/data/mockData";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -26,10 +25,10 @@ interface HeaderProps {
 }
 
 export default function Header({ onToggleSidebar }: HeaderProps) {
-  const { selectedClient, setSelectedClient, selectedAccount, setSelectedAccount,
-    dateRange, setDateRange, compareMode, setCompareMode } = useDashboard();
+  const { accounts, selectedAccount, setSelectedAccount,
+    dateRange, setDateRange, compareMode, setCompareMode,
+    liveMode, refreshCampaigns, campaignsLoading } = useDashboard();
 
-  const [clientOpen, setClientOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
@@ -45,7 +44,6 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         borderColor: "hsl(var(--border))",
       }}
     >
-      {/* Sidebar toggle */}
       <button
         onClick={onToggleSidebar}
         className="p-1.5 rounded-md transition-colors hover:bg-muted"
@@ -55,44 +53,19 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
       </button>
 
       <div className="flex items-center gap-2 flex-1 flex-wrap">
-        {/* Client selector */}
-        <Dropdown
-          open={clientOpen}
-          onToggle={() => { setClientOpen(!clientOpen); setAccountOpen(false); setDateOpen(false); setCompareOpen(false); }}
-          label={
-            <span className="flex items-center gap-2">
-              <span className="text-base">{selectedClient.logo}</span>
-              <span className="font-semibold text-sm" style={{ color: "hsl(var(--foreground))" }}>
-                {selectedClient.clientName}
-              </span>
-            </span>
-          }
-          badge="Client"
-        >
-          {mockClients.map((client) => (
-            <button
-              key={client.clientId}
-              onClick={() => { setSelectedClient(client); setClientOpen(false); }}
-              className={cn(
-                "w-full text-left px-3 py-2 text-sm rounded-md transition-colors hover:bg-muted flex items-center gap-2",
-                selectedClient.clientId === client.clientId && "bg-muted"
-              )}
-            >
-              <span>{client.logo}</span>
-              <div>
-                <div className="font-medium" style={{ color: "hsl(var(--foreground))" }}>{client.clientName}</div>
-                <div className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>{client.industry}</div>
-              </div>
-            </button>
-          ))}
-        </Dropdown>
-
-        <span style={{ color: "hsl(var(--border))" }}>/</span>
+        {/* Live/Mock indicator */}
+        <div className={cn(
+          "flex items-center gap-1.5 text-xs px-2 py-1 rounded-full font-medium",
+          liveMode ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+        )}>
+          {liveMode ? <Wifi size={10} /> : <WifiOff size={10} />}
+          {liveMode ? "Live" : "Mock"}
+        </div>
 
         {/* Account selector */}
         <Dropdown
           open={accountOpen}
-          onToggle={() => { setAccountOpen(!accountOpen); setClientOpen(false); setDateOpen(false); setCompareOpen(false); }}
+          onToggle={() => { setAccountOpen(!accountOpen); setDateOpen(false); setCompareOpen(false); }}
           label={
             <span className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
               {selectedAccount.accountName}
@@ -100,7 +73,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           }
           badge="Ad Account"
         >
-          {selectedClient.adAccounts.map((account) => (
+          {accounts.map((account) => (
             <button
               key={account.accountId}
               onClick={() => { setSelectedAccount(account); setAccountOpen(false); }}
@@ -112,7 +85,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             >
               <div className="font-medium">{account.accountName}</div>
               <div className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                {account.accountId} · {account.campaigns.length} campaigns
+                {account.accountId} · {account.currency}
               </div>
             </button>
           ))}
@@ -120,10 +93,21 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Refresh */}
+        <button
+          onClick={refreshCampaigns}
+          disabled={campaignsLoading}
+          className="p-1.5 rounded-md transition-colors hover:bg-muted disabled:opacity-50"
+          style={{ color: "hsl(var(--muted-foreground))" }}
+          title="Refresh data"
+        >
+          <RefreshCw size={14} className={cn(campaignsLoading && "animate-spin")} />
+        </button>
+
         {/* Compare mode */}
         <Dropdown
           open={compareOpen}
-          onToggle={() => { setCompareOpen(!compareOpen); setClientOpen(false); setAccountOpen(false); setDateOpen(false); }}
+          onToggle={() => { setCompareOpen(!compareOpen); setAccountOpen(false); setDateOpen(false); }}
           label={
             <span className="text-xs font-medium flex items-center gap-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
               <RefreshCw size={12} />
@@ -150,7 +134,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
         {/* Date range */}
         <Dropdown
           open={dateOpen}
-          onToggle={() => { setDateOpen(!dateOpen); setClientOpen(false); setAccountOpen(false); setCompareOpen(false); }}
+          onToggle={() => { setDateOpen(!dateOpen); setAccountOpen(false); setCompareOpen(false); }}
           label={
             <span className="text-xs font-medium flex items-center gap-1.5" style={{ color: "hsl(var(--foreground))" }}>
               <Calendar size={12} />

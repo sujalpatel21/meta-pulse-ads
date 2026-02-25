@@ -1,158 +1,233 @@
 // ================================================================
 // METAFLOW ANALYTICS — Meta Ads Service Layer
 // 
-// This service abstracts all data fetching.
-// Currently returns mock data — replace implementations with
-// Meta Marketing API calls when ready.
-//
-// Meta API Docs: https://developers.facebook.com/docs/marketing-apis/
+// Calls the meta-ads edge function which proxies Meta Graph API.
+// Falls back to mock data if API call fails.
 // ================================================================
 
-import { mockClients, Client, Campaign, AdAccount, AdSet, Ad } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
+import { mockClients, Client, Campaign, AdAccount, AdSet, Ad, DailyMetric } from "@/data/mockData";
 
 export interface DateRange {
   from: string; // ISO date: "YYYY-MM-DD"
   to: string;
 }
 
-// ── IMPORTANT: Meta API Integration Points ────────────────────────
-//
-// When integrating the real Meta Marketing API:
-// 1. Move all API calls to Supabase Edge Functions (server-side only)
-// 2. Store Meta Access Token as a Supabase secret (never expose to frontend)
-// 3. Use the following Edge Function pattern:
-//
-//    supabase/functions/meta-ads/index.ts:
-//    const response = await fetch(
-//      `https://graph.facebook.com/v19.0/${accountId}/campaigns`,
-//      {
-//        headers: {
-//          Authorization: `Bearer ${Deno.env.get("META_ACCESS_TOKEN")}`
-//        }
-//      }
-//    );
-//
-// 4. Frontend calls: supabase.functions.invoke("meta-ads", { body: { accountId, dateRange } })
-// ─────────────────────────────────────────────────────────────────
+// ── Live mode flag ────────────────────────────────────────────────
+let _useLiveData = true;
 
-// ── Client Operations ─────────────────────────────────────────────
-
-export async function fetchClients(): Promise<Client[]> {
-  // TODO: Replace with: supabase.functions.invoke("meta-ads/clients")
-  await simulateDelay(300);
-  return mockClients;
+export function setUseLiveData(live: boolean) {
+  _useLiveData = live;
 }
 
-export async function fetchClientById(clientId: string): Promise<Client | null> {
-  // TODO: Replace with: supabase.functions.invoke("meta-ads/clients", { body: { clientId } })
-  await simulateDelay(200);
-  return mockClients.find((c) => c.clientId === clientId) || null;
+export function getUseLiveData() {
+  return _useLiveData;
+}
+
+// ── Edge Function Caller ──────────────────────────────────────────
+
+async function callMetaApi(action: string, params: Record<string, any> = {}): Promise<any> {
+  const { data, error } = await supabase.functions.invoke("meta-ads", {
+    body: { action, ...params },
+  });
+
+  if (error) {
+    console.error(`Meta API [${action}] error:`, error);
+    throw error;
+  }
+
+  if (data?.error) {
+    console.error(`Meta API [${action}] returned error:`, data.error);
+    throw new Error(data.error);
+  }
+
+  return data;
+}
+
+// ── Date range helper ─────────────────────────────────────────────
+
+export function getDateRangeFromPreset(preset: string): DateRange {
+  const today = new Date();
+  const fmt = (d: Date) => d.toISOString().split("T")[0];
+  
+  switch (preset) {
+    case "today":
+      return { from: fmt(today), to: fmt(today) };
+    case "yesterday": {
+      const y = new Date(today);
+      y.setDate(y.getDate() - 1);
+      return { from: fmt(y), to: fmt(y) };
+    }
+    case "last7": {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 6);
+      return { from: fmt(d), to: fmt(today) };
+    }
+    case "last14": {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 13);
+      return { from: fmt(d), to: fmt(today) };
+    }
+    case "last30": {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 29);
+      return { from: fmt(d), to: fmt(today) };
+    }
+    case "thisMonth": {
+      const first = new Date(today.getFullYear(), today.getMonth(), 1);
+      return { from: fmt(first), to: fmt(today) };
+    }
+    case "lastMonth": {
+      const first = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      const last = new Date(today.getFullYear(), today.getMonth(), 0);
+      return { from: fmt(first), to: fmt(last) };
+    }
+    default:
+      return { from: fmt(new Date(today.getTime() - 6 * 86400000)), to: fmt(today) };
+  }
 }
 
 // ── Ad Account Operations ─────────────────────────────────────────
 
-export async function fetchAdAccounts(clientId: string): Promise<AdAccount[]> {
-  // TODO: Replace with Meta Graph API: GET /{business-id}/owned_ad_accounts
-  await simulateDelay(200);
-  const client = mockClients.find((c) => c.clientId === clientId);
-  return client?.adAccounts || [];
+export async function fetchAdAccounts(): Promise<AdAccount[]> {
+  if (!_useLiveData) {
+    return mockClients.flatMap((c) => c.adAccounts);
+  }
+
+  try {
+    const accounts = await callMetaApi("get_ad_accounts");
+    return accounts.map((a: any) => ({
+      accountId: a.accountId,
+      accountName: a.accountName,
+      currency: a.currency,
+      campaigns: [],
+    }));
+  } catch (e) {
+    console.warn("Falling back to mock ad accounts:", e);
+    return mockClients.flatMap((c) => c.adAccounts);
+  }
 }
 
 // ── Campaign Operations ───────────────────────────────────────────
 
 export async function fetchCampaigns(
   accountId: string,
-  _dateRange?: DateRange
+  dateRange?: DateRange
 ): Promise<Campaign[]> {
-  // TODO: Replace with Meta Graph API: GET /act_{accountId}/campaigns
-  // Fields: name,objective,status,daily_budget,lifetime_budget,insights{spend,impressions,clicks}
-  // Date range: time_range={"since":"2024-01-01","until":"2024-01-31"}
-  await simulateDelay(400);
-
-  for (const client of mockClients) {
-    for (const account of client.adAccounts) {
-      if (account.accountId === accountId) {
-        return account.campaigns;
+  if (!_useLiveData) {
+    for (const client of mockClients) {
+      for (const account of client.adAccounts) {
+        if (account.accountId === accountId) return account.campaigns;
       }
     }
+    return [];
   }
-  return [];
-}
 
-export async function fetchCampaignById(
-  campaignId: string,
-  _dateRange?: DateRange
-): Promise<Campaign | null> {
-  // TODO: Replace with Meta Graph API: GET /{campaign-id}
-  await simulateDelay(250);
-
-  for (const client of mockClients) {
-    for (const account of client.adAccounts) {
-      const campaign = account.campaigns.find((c) => c.campaignId === campaignId);
-      if (campaign) return campaign;
+  try {
+    return await callMetaApi("get_campaigns", { accountId, dateRange });
+  } catch (e) {
+    console.warn("Falling back to mock campaigns:", e);
+    for (const client of mockClients) {
+      for (const account of client.adAccounts) {
+        if (account.accountId === accountId) return account.campaigns;
+      }
     }
+    return [];
   }
-  return null;
 }
 
 // ── Ad Set Operations ─────────────────────────────────────────────
 
 export async function fetchAdSets(
   campaignId: string,
-  _dateRange?: DateRange
+  dateRange?: DateRange
 ): Promise<AdSet[]> {
-  // TODO: Replace with Meta Graph API: GET /{campaign-id}/adsets
-  // Fields: name,status,daily_budget,targeting,insights{spend,impressions,clicks,reach,frequency}
-  await simulateDelay(300);
-
-  for (const client of mockClients) {
-    for (const account of client.adAccounts) {
-      const campaign = account.campaigns.find((c) => c.campaignId === campaignId);
-      if (campaign) return campaign.adSets;
+  if (!_useLiveData) {
+    for (const client of mockClients) {
+      for (const account of client.adAccounts) {
+        const campaign = account.campaigns.find((c) => c.campaignId === campaignId);
+        if (campaign) return campaign.adSets;
+      }
     }
+    return [];
   }
-  return [];
+
+  try {
+    return await callMetaApi("get_adsets", { campaignId, dateRange });
+  } catch (e) {
+    console.warn("Falling back to mock ad sets:", e);
+    for (const client of mockClients) {
+      for (const account of client.adAccounts) {
+        const campaign = account.campaigns.find((c) => c.campaignId === campaignId);
+        if (campaign) return campaign.adSets;
+      }
+    }
+    return [];
+  }
 }
 
 // ── Ad Operations ─────────────────────────────────────────────────
 
 export async function fetchAds(
   adSetId: string,
-  _dateRange?: DateRange
+  dateRange?: DateRange
 ): Promise<Ad[]> {
-  // TODO: Replace with Meta Graph API: GET /{adset-id}/ads
-  // Fields: name,status,creative{thumbnail_url},insights{spend,clicks,impressions,actions}
-  await simulateDelay(300);
-
-  for (const client of mockClients) {
-    for (const account of client.adAccounts) {
-      for (const campaign of account.campaigns) {
-        const adSet = campaign.adSets.find((as) => as.adSetId === adSetId);
-        if (adSet) return adSet.ads;
+  if (!_useLiveData) {
+    for (const client of mockClients) {
+      for (const account of client.adAccounts) {
+        for (const campaign of account.campaigns) {
+          const adSet = campaign.adSets.find((as) => as.adSetId === adSetId);
+          if (adSet) return adSet.ads;
+        }
       }
     }
+    return [];
   }
-  return [];
+
+  try {
+    return await callMetaApi("get_ads", { adSetId, dateRange });
+  } catch (e) {
+    console.warn("Falling back to mock ads:", e);
+    for (const client of mockClients) {
+      for (const account of client.adAccounts) {
+        for (const campaign of account.campaigns) {
+          const adSet = campaign.adSets.find((as) => as.adSetId === adSetId);
+          if (adSet) return adSet.ads;
+        }
+      }
+    }
+    return [];
+  }
 }
 
-// ── Insights / Analytics ──────────────────────────────────────────
+// ── Insights / Daily Metrics ──────────────────────────────────────
 
-export async function fetchAccountInsights(
+export async function fetchDailyInsights(
   accountId: string,
-  _dateRange?: DateRange
-) {
-  // TODO: Replace with Meta Graph API: GET /act_{accountId}/insights
-  // Fields: spend,impressions,clicks,reach,actions,cost_per_action_type,purchase_roas
-  await simulateDelay(350);
+  dateRange?: DateRange
+): Promise<DailyMetric[]> {
+  if (!_useLiveData) return [];
 
-  for (const client of mockClients) {
-    for (const account of client.adAccounts) {
-      if (account.accountId === accountId) {
-        return account.campaigns;
-      }
-    }
+  try {
+    return await callMetaApi("get_insights", { accountId, dateRange });
+  } catch (e) {
+    console.warn("Falling back to empty insights:", e);
+    return [];
   }
-  return [];
+}
+
+export async function fetchCampaignDailyInsights(
+  campaignId: string,
+  dateRange?: DateRange
+): Promise<DailyMetric[]> {
+  if (!_useLiveData) return [];
+
+  try {
+    return await callMetaApi("get_campaign_insights", { campaignId, dateRange });
+  } catch (e) {
+    console.warn("Falling back to empty campaign insights:", e);
+    return [];
+  }
 }
 
 // ── Alerts Engine ─────────────────────────────────────────────────
@@ -170,15 +245,11 @@ export interface Alert {
 }
 
 export async function generateAlerts(campaigns: Campaign[]): Promise<Alert[]> {
-  // TODO: In production, run this logic server-side on a schedule
-  await simulateDelay(200);
-
   const alerts: Alert[] = [];
 
   campaigns.forEach((c) => {
     const cpl = c.leads > 0 ? c.spend / c.leads : 0;
 
-    // CPL too high (> ₹500)
     if (cpl > 500 && c.leads > 0) {
       alerts.push({
         id: `cpl-high-${c.campaignId}`,
@@ -193,7 +264,6 @@ export async function generateAlerts(campaigns: Campaign[]): Promise<Alert[]> {
       });
     }
 
-    // ROAS dropped below 2
     if (c.roas > 0 && c.roas < 2) {
       alerts.push({
         id: `roas-low-${c.campaignId}`,
@@ -208,8 +278,7 @@ export async function generateAlerts(campaigns: Campaign[]): Promise<Alert[]> {
       });
     }
 
-    // Overspend (spend > budget)
-    if (c.spend > c.budget) {
+    if (c.spend > c.budget && c.budget > 0) {
       const pct = ((c.spend - c.budget) / c.budget) * 100;
       alerts.push({
         id: `overspend-${c.campaignId}`,
@@ -224,7 +293,6 @@ export async function generateAlerts(campaigns: Campaign[]): Promise<Alert[]> {
       });
     }
 
-    // Good CTR (> 3.5%) - healthy alert
     if (c.ctr > 3.5 && c.leads > 0) {
       alerts.push({
         id: `ctr-good-${c.campaignId}`,
@@ -246,10 +314,6 @@ export async function generateAlerts(campaigns: Campaign[]): Promise<Alert[]> {
 // ── AI Insights Engine ────────────────────────────────────────────
 
 export async function generateAIInsights(campaigns: Campaign[]): Promise<string[]> {
-  // TODO: Replace with OpenAI / Gemini API call via Edge Function:
-  // supabase.functions.invoke("ai-insights", { body: { campaigns, dateRange } })
-  await simulateDelay(500);
-
   const insights: string[] = [];
   const active = campaigns.filter((c) => c.status === "Active");
   const totalSpend = active.reduce((s, c) => s + c.spend, 0);
@@ -257,7 +321,6 @@ export async function generateAIInsights(campaigns: Campaign[]): Promise<string[
 
   if (active.length === 0) return ["No active campaigns found for analysis."];
 
-  // Top performing campaign
   const topByLeads = [...active].sort((a, b) => b.leads - a.leads)[0];
   if (topByLeads && totalLeads > 0) {
     const pct = Math.round((topByLeads.leads / totalLeads) * 100);
@@ -266,7 +329,6 @@ export async function generateAIInsights(campaigns: Campaign[]): Promise<string[
     );
   }
 
-  // Efficiency insight
   const bestCPL = [...active.filter((c) => c.leads > 0)].sort(
     (a, b) => a.spend / a.leads - b.spend / b.leads
   )[0];
@@ -277,11 +339,10 @@ export async function generateAIInsights(campaigns: Campaign[]): Promise<string[
     );
   }
 
-  // Fatigue detection across all adsets
   let fatigueCount = 0;
   campaigns.forEach((c) => {
-    c.adSets.forEach((as) => {
-      as.ads.forEach((ad) => {
+    c.adSets?.forEach((as) => {
+      as.ads?.forEach((ad) => {
         if (ad.fatigue) fatigueCount++;
       });
     });
@@ -293,7 +354,6 @@ export async function generateAIInsights(campaigns: Campaign[]): Promise<string[
     );
   }
 
-  // Overall spend insight
   const avgRoas = active.filter((c) => c.roas > 0).reduce((s, c) => s + c.roas, 0) / (active.filter((c) => c.roas > 0).length || 1);
   insights.push(
     `📊 Total active spend is <strong>₹${totalSpend.toLocaleString("en-IN")}</strong> generating ${totalLeads} leads at an average ROAS of <strong>${avgRoas.toFixed(1)}x</strong>. Overall account health is ${avgRoas > 2.5 ? "strong 🟢" : avgRoas > 1.5 ? "moderate 🟡" : "needs attention 🔴"}.`
@@ -304,17 +364,9 @@ export async function generateAIInsights(campaigns: Campaign[]): Promise<string[
 
 // ── Helpers ───────────────────────────────────────────────────────
 
-function simulateDelay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 export function formatINR(amount: number): string {
-  if (amount >= 100000) {
-    return `₹${(amount / 100000).toFixed(1)}L`;
-  }
-  if (amount >= 1000) {
-    return `₹${(amount / 1000).toFixed(1)}K`;
-  }
+  if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
+  if (amount >= 1000) return `₹${(amount / 1000).toFixed(1)}K`;
   return `₹${amount.toFixed(0)}`;
 }
 

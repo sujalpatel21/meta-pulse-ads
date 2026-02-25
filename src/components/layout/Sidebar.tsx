@@ -2,9 +2,10 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, TrendingUp, Layers, MousePointer2,
   Bell, Target, FileText, Settings, ChevronLeft,
-  Zap, BarChart3,
+  Zap, BarChart3, Wifi,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDashboard } from "./Layout";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
@@ -24,6 +25,7 @@ interface SidebarProps {
 
 export default function Sidebar({ open, onToggle }: SidebarProps) {
   const location = useLocation();
+  const { liveMode } = useDashboard();
 
   return (
     <aside
@@ -76,18 +78,26 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         })}
       </nav>
 
-      {/* AI badge */}
       {open && (
         <div className="px-3 pb-3">
           <div
             className="rounded-lg p-3 text-xs ai-insight-box"
           >
             <div className="flex items-center gap-1.5 mb-1">
-              <Zap size={11} style={{ color: "hsl(var(--brand))" }} />
-              <span className="font-semibold" style={{ color: "hsl(var(--brand))" }}>AI Ready</span>
+              {liveMode ? (
+                <>
+                  <Wifi size={11} className="text-emerald-400" />
+                  <span className="font-semibold text-emerald-400">Live Data</span>
+                </>
+              ) : (
+                <>
+                  <Zap size={11} style={{ color: "hsl(var(--brand))" }} />
+                  <span className="font-semibold" style={{ color: "hsl(var(--brand))" }}>Demo Mode</span>
+                </>
+              )}
             </div>
             <p style={{ color: "hsl(var(--muted-foreground))" }}>
-              Connect Meta API for live data sync
+              {liveMode ? "Connected to Meta API" : "Using mock data — connect Meta API in Settings"}
             </p>
           </div>
         </div>

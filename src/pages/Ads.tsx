@@ -2,39 +2,67 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useDashboard } from "@/components/layout/Layout";
 import { Ad, AdSet } from "@/data/mockData";
+import { fetchAds } from "@/services/metaService";
+import { getDateRangeFromPreset } from "@/services/metaService";
 import { ArrowLeft, AlertTriangle, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Ads() {
-  const { selectedAccount } = useDashboard();
+  const { selectedAccount, campaigns, dateRange, liveMode } = useDashboard();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const adSetId = searchParams.get("adset");
   const adId = searchParams.get("ad");
 
-  const [adSet, setAdSet] = useState<AdSet | null>(null);
+  const [ads, setAds] = useState<Ad[]>([]);
   const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
+  const [adSetName, setAdSetName] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let foundAdSet: AdSet | null = null;
-    let foundAd: Ad | null = null;
+    const loadAds = async () => {
+      setLoading(true);
 
-    for (const c of selectedAccount.campaigns) {
-      for (const as of c.adSets) {
-        if (!adSetId || as.adSetId === adSetId) {
-          foundAdSet = as;
-          foundAd = adId ? as.ads.find((a) => a.adId === adId) || as.ads[0] : as.ads[0];
-          if (adSetId) break;
+      // First try to find from inline campaign data
+      let foundAds: Ad[] = [];
+      for (const c of campaigns) {
+        for (const as of (c.adSets || [])) {
+          if (!adSetId || as.adSetId === adSetId) {
+            foundAds = as.ads || [];
+            setAdSetName(as.name);
+            break;
+          }
+        }
+        if (foundAds.length > 0) break;
+      }
+
+      // If no inline ads and live mode, fetch from API
+      if (foundAds.length === 0 && adSetId && liveMode) {
+        try {
+          const dr = getDateRangeFromPreset(dateRange);
+          foundAds = await fetchAds(adSetId, dr);
+          setAdSetName(adSetId);
+        } catch {
+          foundAds = [];
         }
       }
-      if (adSetId && foundAdSet) break;
-    }
 
-    setAdSet(foundAdSet);
-    setSelectedAd(foundAd);
-  }, [adSetId, adId, selectedAccount]);
+      setAds(foundAds);
+      const selected = adId ? foundAds.find((a) => a.adId === adId) || foundAds[0] : foundAds[0];
+      setSelectedAd(selected || null);
+      setLoading(false);
+    };
+    loadAds();
+  }, [adSetId, adId, campaigns, dateRange, liveMode]);
 
-  const ads = adSet?.ads || [];
+  if (loading) {
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+        <div className="h-64 bg-muted rounded-xl animate-pulse" />
+      </div>
+    );
+  }
 
   const EngagementBar = ({ score }: { score: number }) => (
     <div className="progress-bar mt-1">
@@ -61,7 +89,7 @@ export default function Ads() {
         <div>
           <h1 className="text-xl font-bold" style={{ color: "hsl(var(--foreground))" }}>Ads</h1>
           <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-            {adSet?.name || "All Ads"}
+            {adSetName || "All Ads"}
           </p>
         </div>
       </div>
@@ -77,7 +105,6 @@ export default function Ads() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          {/* Ad List */}
           <div className="chart-card p-4 space-y-2 lg:col-span-1">
             <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "hsl(var(--muted-foreground))" }}>
               Ads ({ads.length})
@@ -113,10 +140,8 @@ export default function Ads() {
             ))}
           </div>
 
-          {/* Ad Detail */}
           {selectedAd && (
             <div className="lg:col-span-3 space-y-4">
-              {/* Main Card */}
               <div className="chart-card p-5">
                 <div className="flex gap-5 mb-5">
                   <img
@@ -155,7 +180,6 @@ export default function Ads() {
                   </div>
                 </div>
 
-                {/* Engagement Score */}
                 <div className="mb-5 p-4 rounded-lg" style={{ background: "hsl(var(--muted))" }}>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs font-semibold" style={{ color: "hsl(var(--muted-foreground))" }}>
@@ -176,7 +200,6 @@ export default function Ads() {
                   </p>
                 </div>
 
-                {/* Metrics */}
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {[
                     { label: "Spend", value: `₹${selectedAd.spend.toLocaleString("en-IN")}` },
@@ -196,7 +219,6 @@ export default function Ads() {
                 </div>
               </div>
 
-              {/* All Ads Comparison */}
               <div className="chart-card p-5">
                 <h3 className="text-sm font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>
                   All Ads Comparison
@@ -205,14 +227,7 @@ export default function Ads() {
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Ad Name</th>
-                        <th>Spend</th>
-                        <th>Leads</th>
-                        <th>CTR</th>
-                        <th>CPC</th>
-                        <th>ROAS</th>
-                        <th>Score</th>
-                        <th>Fatigue</th>
+                        <th>Ad Name</th><th>Spend</th><th>Leads</th><th>CTR</th><th>CPC</th><th>ROAS</th><th>Score</th><th>Fatigue</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -226,9 +241,7 @@ export default function Ads() {
                           <td>
                             <div className="flex items-center gap-2">
                               <img src={ad.thumbnail} className="w-8 h-6 rounded object-cover" alt="" />
-                              <span className="text-xs font-medium truncate max-w-[140px]" style={{ color: "hsl(var(--foreground))" }}>
-                                {ad.name}
-                              </span>
+                              <span className="text-xs font-medium truncate max-w-[140px]" style={{ color: "hsl(var(--foreground))" }}>{ad.name}</span>
                             </div>
                           </td>
                           <td className="font-mono text-xs">₹{ad.spend.toLocaleString("en-IN")}</td>

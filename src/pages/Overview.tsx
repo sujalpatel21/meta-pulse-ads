@@ -1,6 +1,4 @@
 import { useDashboard } from "@/components/layout/Layout";
-import { useEffect, useState } from "react";
-import { Campaign } from "@/data/mockData";
 import { computeKPIs, aggregateDailyMetrics } from "@/data/mockData";
 import KPICards, { buildKPIData } from "@/components/dashboard/KPICards";
 import { SpendLeadsChart, CampaignBarChart, SpendPieChart } from "@/components/dashboard/Charts";
@@ -9,17 +7,7 @@ import AIInsights from "@/components/dashboard/AIInsights";
 import AlertsBanner from "@/components/alerts/AlertsBanner";
 
 export default function Overview() {
-  const { selectedAccount } = useDashboard();
-  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    setTimeout(() => {
-      setCampaigns(selectedAccount.campaigns);
-      setLoading(false);
-    }, 600);
-  }, [selectedAccount]);
+  const { selectedAccount, campaigns, campaignsLoading: loading, apiError } = useDashboard();
 
   const kpis = computeKPIs(campaigns);
   const kpiData = buildKPIData(
@@ -40,6 +28,17 @@ export default function Overview() {
         </p>
       </div>
 
+      {/* API Error */}
+      {apiError && (
+        <div className="p-3 rounded-lg text-sm" style={{
+          background: "hsl(0 84% 50% / 0.1)",
+          color: "hsl(0 84% 60%)",
+          border: "1px solid hsl(0 84% 50% / 0.2)",
+        }}>
+          ⚠️ API Error: {apiError} — Showing fallback data
+        </div>
+      )}
+
       {/* AI Insights */}
       {!loading && campaigns.length > 0 && (
         <AIInsights campaigns={campaigns} />
@@ -53,7 +52,6 @@ export default function Overview() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Spend vs Leads */}
         <div className="chart-card p-5 lg:col-span-2">
           <h3 className="text-sm font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>
             📈 Spend vs Leads (Last 14 Days)
@@ -65,7 +63,6 @@ export default function Overview() {
           )}
         </div>
 
-        {/* Spend Distribution */}
         <div className="chart-card p-5">
           <h3 className="text-sm font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>
             🥧 Spend by Campaign
@@ -78,7 +75,6 @@ export default function Overview() {
         </div>
       </div>
 
-      {/* Campaign Comparison */}
       <div className="chart-card p-5">
         <h3 className="text-sm font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>
           📊 Campaign Performance Comparison
@@ -90,7 +86,6 @@ export default function Overview() {
         )}
       </div>
 
-      {/* Campaign Table */}
       <div className="chart-card p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>

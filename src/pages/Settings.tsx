@@ -1,4 +1,9 @@
+import { useDashboard } from "@/components/layout/Layout";
+import { Wifi, WifiOff } from "lucide-react";
+
 export default function Settings() {
+  const { liveMode, accounts } = useDashboard();
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -6,12 +11,36 @@ export default function Settings() {
         <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Configure your MetaFlow workspace</p>
       </div>
 
+      {/* Connection Status */}
+      <div className={`chart-card p-5 border-l-4 ${liveMode ? "border-l-emerald-500" : "border-l-amber-500"}`}>
+        <div className="flex items-center gap-3 mb-2">
+          {liveMode ? <Wifi size={20} className="text-emerald-400" /> : <WifiOff size={20} className="text-amber-400" />}
+          <h3 className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+            {liveMode ? "✅ Connected to Meta API" : "⚠️ Using Mock Data"}
+          </h3>
+        </div>
+        <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
+          {liveMode
+            ? `Live data syncing from ${accounts.length} ad account(s). All dashboard data reflects your real Meta Ads performance.`
+            : "Your Meta access token may be invalid or expired. Dashboard is showing demo data. Re-configure your token to see live data."}
+        </p>
+        {liveMode && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {accounts.map((a) => (
+              <span key={a.accountId} className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400">
+                {a.accountName} ({a.accountId})
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {[
           {
             title: "🔗 Meta API Integration",
-            desc: "Connect your Meta Business Manager to sync live campaign data.",
-            items: ["Meta App ID", "Access Token", "Business Manager ID", "Pixel ID"],
+            desc: "Your Meta access token is stored securely in backend secrets. Never exposed in frontend code.",
+            items: ["Token Status: " + (liveMode ? "Valid ✅" : "Invalid/Missing ❌"), "API Version: v19.0", "Permissions: ads_read, read_insights", "Data Source: Meta Marketing API"],
           },
           {
             title: "📧 Email Notifications",
@@ -36,35 +65,36 @@ export default function Settings() {
               {section.items.map((item) => (
                 <div key={item} className="flex items-center justify-between">
                   <label className="text-xs font-medium" style={{ color: "hsl(var(--foreground))" }}>{item}</label>
-                  <input
-                    type="text"
-                    placeholder="Configure..."
-                    className="text-xs px-3 py-1.5 rounded-lg border w-40 outline-none focus:border-brand/60 transition-colors"
-                    style={{
-                      background: "hsl(var(--muted))",
-                      borderColor: "hsl(var(--border))",
-                      color: "hsl(var(--foreground))",
-                    }}
-                  />
+                  {!item.includes("Token Status") && !item.includes("API Version") && !item.includes("Permissions") && !item.includes("Data Source") ? (
+                    <input
+                      type="text"
+                      placeholder="Configure..."
+                      className="text-xs px-3 py-1.5 rounded-lg border w-40 outline-none focus:border-brand/60 transition-colors"
+                      style={{
+                        background: "hsl(var(--muted))",
+                        borderColor: "hsl(var(--border))",
+                        color: "hsl(var(--foreground))",
+                      }}
+                    />
+                  ) : (
+                    <span className="text-xs font-mono" style={{ color: "hsl(var(--muted-foreground))" }}>
+                      {item.split(": ")[1]}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
-            <button
-              className="mt-4 w-full py-2 rounded-lg text-xs font-semibold transition-all hover:opacity-90"
-              style={{ background: "hsl(var(--brand))", color: "hsl(var(--primary-foreground))" }}
-              onClick={() => alert("Settings saved — demo mode")}
-            >
-              Save Settings
-            </button>
+            {!section.title.includes("Meta API") && (
+              <button
+                className="mt-4 w-full py-2 rounded-lg text-xs font-semibold transition-all hover:opacity-90"
+                style={{ background: "hsl(var(--brand))", color: "hsl(var(--primary-foreground))" }}
+                onClick={() => alert("Settings saved — demo mode")}
+              >
+                Save Settings
+              </button>
+            )}
           </div>
         ))}
-      </div>
-
-      <div className="chart-card p-5 ai-insight-box">
-        <h3 className="text-sm font-semibold mb-2" style={{ color: "hsl(var(--foreground))" }}>🚀 Upgrade to Live API</h3>
-        <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-          This dashboard is Meta API-ready. Replace <code className="text-xs px-1.5 py-0.5 rounded bg-muted font-mono">src/services/metaService.ts</code> mock functions with real API calls via Supabase Edge Functions. Access tokens are never stored in the frontend.
-        </p>
       </div>
     </div>
   );

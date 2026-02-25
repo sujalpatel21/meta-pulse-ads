@@ -3,20 +3,19 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useDashboard } from "@/components/layout/Layout";
 import { Campaign } from "@/data/mockData";
 import { SpendLeadsChart } from "@/components/dashboard/Charts";
-import { aggregateDailyMetrics } from "@/data/mockData";
 import { TrendingUp, TrendingDown, ArrowRight, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Campaigns() {
-  const { selectedAccount } = useDashboard();
+  const { selectedAccount, campaigns, campaignsLoading } = useDashboard();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const campaignId = searchParams.get("id");
 
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
-  const campaigns = selectedAccount.campaigns;
 
   useEffect(() => {
+    if (campaigns.length === 0) return;
     if (campaignId) {
       const c = campaigns.find((c) => c.campaignId === campaignId);
       setSelectedCampaign(c || campaigns[0] || null);
@@ -25,10 +24,19 @@ export default function Campaigns() {
     }
   }, [campaignId, campaigns]);
 
+  if (campaignsLoading) {
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <div className="h-8 w-48 bg-muted rounded animate-pulse" />
+        <div className="h-64 bg-muted rounded-xl animate-pulse" />
+      </div>
+    );
+  }
+
   if (!selectedCampaign) return null;
 
   const cpl = selectedCampaign.leads > 0 ? selectedCampaign.spend / selectedCampaign.leads : 0;
-  const budgetPct = Math.min((selectedCampaign.spend / selectedCampaign.budget) * 100, 100);
+  const budgetPct = selectedCampaign.budget > 0 ? Math.min((selectedCampaign.spend / selectedCampaign.budget) * 100, 100) : 0;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -80,7 +88,6 @@ export default function Campaigns() {
 
         {/* Campaign Detail */}
         <div className="lg:col-span-3 space-y-4">
-          {/* Header */}
           <div className="chart-card p-5">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -106,58 +113,56 @@ export default function Campaigns() {
             </div>
 
             {/* Budget Progress */}
-            <div className="mb-4">
-              <div className="flex justify-between text-xs mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
-                <span>Budget Used</span>
-                <span>₹{selectedCampaign.spend.toLocaleString("en-IN")} / ₹{selectedCampaign.budget.toLocaleString("en-IN")}</span>
+            {selectedCampaign.budget > 0 && (
+              <div className="mb-4">
+                <div className="flex justify-between text-xs mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
+                  <span>Budget Used</span>
+                  <span>₹{selectedCampaign.spend.toLocaleString("en-IN")} / ₹{selectedCampaign.budget.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="progress-bar">
+                  <div
+                    className={cn("progress-fill", budgetPct > 90 && "danger")}
+                    style={{ width: `${budgetPct}%` }}
+                  />
+                </div>
+                <div className="text-xs mt-1 text-right" style={{ color: budgetPct > 90 ? "hsl(var(--metric-negative))" : "hsl(var(--muted-foreground))" }}>
+                  {budgetPct.toFixed(1)}% used
+                </div>
               </div>
-              <div className="progress-bar">
-                <div
-                  className={cn("progress-fill", budgetPct > 90 && "danger")}
-                  style={{ width: `${budgetPct}%` }}
-                />
-              </div>
-              <div className="text-xs mt-1 text-right" style={{ color: budgetPct > 90 ? "hsl(var(--metric-negative))" : "hsl(var(--muted-foreground))" }}>
-                {budgetPct.toFixed(1)}% used
-              </div>
-            </div>
+            )}
 
             {/* KPIs */}
             <div className="grid grid-cols-4 gap-3">
               {[
-                { label: "Spend", value: `₹${selectedCampaign.spend.toLocaleString("en-IN")}`, change: 12 },
-                { label: "Leads", value: selectedCampaign.leads.toString(), change: 18 },
-                { label: "CTR", value: `${selectedCampaign.ctr.toFixed(2)}%`, change: -2 },
-                { label: "ROAS", value: `${selectedCampaign.roas.toFixed(1)}x`, change: 4 },
-                { label: "CPC", value: `₹${selectedCampaign.cpc.toFixed(2)}`, change: -5 },
-                { label: "CPL", value: cpl > 0 ? `₹${cpl.toFixed(0)}` : "—", change: -8 },
-                { label: "Impressions", value: selectedCampaign.impressions.toLocaleString("en-IN"), change: 9 },
-                { label: "Clicks", value: selectedCampaign.clicks.toLocaleString("en-IN"), change: 7 },
+                { label: "Spend", value: `₹${selectedCampaign.spend.toLocaleString("en-IN")}` },
+                { label: "Leads", value: selectedCampaign.leads.toString() },
+                { label: "CTR", value: `${selectedCampaign.ctr.toFixed(2)}%` },
+                { label: "ROAS", value: `${selectedCampaign.roas.toFixed(1)}x` },
+                { label: "CPC", value: `₹${selectedCampaign.cpc.toFixed(2)}` },
+                { label: "CPL", value: cpl > 0 ? `₹${cpl.toFixed(0)}` : "—" },
+                { label: "Impressions", value: selectedCampaign.impressions.toLocaleString("en-IN") },
+                { label: "Clicks", value: selectedCampaign.clicks.toLocaleString("en-IN") },
               ].map((m) => (
                 <div key={m.label} className="p-3 rounded-lg" style={{ background: "hsl(var(--muted))" }}>
                   <div className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>{m.label}</div>
                   <div className="text-sm font-bold font-mono" style={{ color: "hsl(var(--foreground))" }}>{m.value}</div>
-                  <div className="flex items-center gap-0.5 text-xs mt-0.5" style={{
-                    color: m.change > 0 ? "hsl(var(--metric-positive))" : "hsl(var(--metric-negative))"
-                  }}>
-                    {m.change > 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                    {m.change > 0 ? "+" : ""}{m.change}%
-                  </div>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Trend Chart */}
-          <div className="chart-card p-5">
-            <h3 className="text-sm font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>
-              Spend & Leads Trend
-            </h3>
-            <SpendLeadsChart data={selectedCampaign.dailyMetrics} />
-          </div>
+          {selectedCampaign.dailyMetrics?.length > 0 && (
+            <div className="chart-card p-5">
+              <h3 className="text-sm font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>
+                Spend & Leads Trend
+              </h3>
+              <SpendLeadsChart data={selectedCampaign.dailyMetrics} />
+            </div>
+          )}
 
           {/* Ad Sets Preview */}
-          {selectedCampaign.adSets.length > 0 && (
+          {selectedCampaign.adSets?.length > 0 && (
             <div className="chart-card p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
