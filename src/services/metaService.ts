@@ -89,23 +89,19 @@ export function getDateRangeFromPreset(preset: string): DateRange {
 
 // ── Ad Account Operations ─────────────────────────────────────────
 
-export async function fetchAdAccounts(): Promise<AdAccount[]> {
+export async function fetchAdAccounts(): Promise<any[]> {
   if (!_useLiveData) {
     return mockClients.flatMap((c) => c.adAccounts);
   }
 
-  try {
-    const accounts = await callMetaApi("get_ad_accounts");
-    return accounts.map((a: any) => ({
-      accountId: a.accountId,
-      accountName: a.accountName,
-      currency: a.currency,
-      campaigns: [],
-    }));
-  } catch (e) {
-    console.warn("Falling back to mock ad accounts:", e);
-    return mockClients.flatMap((c) => c.adAccounts);
-  }
+  const accounts = await callMetaApi("get_ad_accounts");
+  return accounts.map((a: any) => ({
+    accountId: a.accountId,
+    accountName: a.accountName,
+    currency: a.currency,
+    accountStatus: a.accountStatus,
+    campaigns: [],
+  }));
 }
 
 // ── Campaign Operations ───────────────────────────────────────────
@@ -123,17 +119,7 @@ export async function fetchCampaigns(
     return [];
   }
 
-  try {
-    return await callMetaApi("get_campaigns", { accountId, dateRange });
-  } catch (e) {
-    console.warn("Falling back to mock campaigns:", e);
-    for (const client of mockClients) {
-      for (const account of client.adAccounts) {
-        if (account.accountId === accountId) return account.campaigns;
-      }
-    }
-    return [];
-  }
+  return await callMetaApi("get_campaigns", { accountId, dateRange });
 }
 
 // ── Ad Set Operations ─────────────────────────────────────────────

@@ -27,7 +27,8 @@ Deno.serve(async (req) => {
 
     let timeRange = "";
     if (dateRange?.from && dateRange?.to) {
-      timeRange = `&time_range={"since":"${dateRange.from}","until":"${dateRange.to}"}`;
+      const trJson = JSON.stringify({ since: dateRange.from, until: dateRange.to });
+      timeRange = `&time_range=${encodeURIComponent(trJson)}`;
     }
 
     const metaFetch = async (url: string) => {
