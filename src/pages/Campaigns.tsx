@@ -152,7 +152,7 @@ export default function Campaigns() {
           </div>
 
           {/* Trend Chart */}
-          {selectedCampaign.dailyMetrics?.length > 0 && (
+          {(selectedCampaign.dailyMetrics?.length ?? 0) > 0 && (
             <div className="chart-card p-5">
               <h3 className="text-sm font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>
                 Spend & Leads Trend
@@ -162,7 +162,7 @@ export default function Campaigns() {
           )}
 
           {/* Ad Sets Preview */}
-          {selectedCampaign.adSets?.length > 0 && (
+          {(selectedCampaign.adSets?.length ?? 0) > 0 && (
             <div className="chart-card p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
