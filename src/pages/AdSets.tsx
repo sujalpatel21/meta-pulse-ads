@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useDashboard } from "@/components/layout/Layout";
 import { AdSet } from "@/data/mockData";
-import { fetchAdSets } from "@/services/metaService";
-import { getDateRangeFromPreset } from "@/services/metaService";
+import { fetchAdSets, getDateRangeFromPreset } from "@/services/metaService";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,9 +21,11 @@ export default function AdSets() {
   useEffect(() => {
     const loadAdSets = async () => {
       setLoading(true);
+
+      // Find the target campaign
       const targetCampaign = campaignId
         ? campaigns.find((c) => c.campaignId === campaignId)
-        : campaigns.find((c) => (c.adSets?.length || 0) > 0);
+        : campaigns[0];
 
       if (!targetCampaign) {
         setAdSets([]);
@@ -33,14 +34,8 @@ export default function AdSets() {
       }
       setCampaignName(targetCampaign.name);
 
-      // If we have adSets inline (mock data), use them; otherwise fetch
-      if (targetCampaign.adSets?.length > 0) {
-        setAdSets(targetCampaign.adSets);
-        const as = adSetIdParam
-          ? targetCampaign.adSets.find((a) => a.adSetId === adSetIdParam) || targetCampaign.adSets[0]
-          : targetCampaign.adSets[0];
-        setSelectedAdSet(as);
-      } else if (liveMode) {
+      // Always fetch from API in live mode
+      if (liveMode) {
         try {
           const dr = getDateRangeFromPreset(dateRange);
           const fetched = await fetchAdSets(targetCampaign.campaignId, dr);
@@ -49,9 +44,16 @@ export default function AdSets() {
             ? fetched.find((a) => a.adSetId === adSetIdParam) || fetched[0]
             : fetched[0];
           setSelectedAdSet(as || null);
-        } catch {
+        } catch (e) {
+          console.warn("Failed to fetch ad sets:", e);
           setAdSets([]);
         }
+      } else if (targetCampaign.adSets?.length > 0) {
+        setAdSets(targetCampaign.adSets);
+        const as = adSetIdParam
+          ? targetCampaign.adSets.find((a) => a.adSetId === adSetIdParam) || targetCampaign.adSets[0]
+          : targetCampaign.adSets[0];
+        setSelectedAdSet(as);
       } else {
         setAdSets([]);
       }
@@ -100,7 +102,7 @@ export default function AdSets() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
           <div className="chart-card p-4 space-y-2 lg:col-span-1">
             <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "hsl(var(--muted-foreground))" }}>
-              Ad Sets
+              Ad Sets ({adSets.length})
             </h3>
             {adSets.map((as) => (
               <button
@@ -113,13 +115,13 @@ export default function AdSets() {
                     : "border-transparent hover:bg-muted"
                 )}
               >
-                <div className="text-xs font-semibold leading-tight" style={{
+                <div className="text-xs font-semibold leading-tight truncate" style={{
                   color: selectedAdSet?.adSetId === as.adSetId ? "hsl(var(--brand))" : "hsl(var(--foreground))"
                 }}>
                   {as.name}
                 </div>
                 <div className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  {as.leads} leads · Freq {as.frequency}x
+                  ₹{as.spend.toLocaleString("en-IN")} · {as.leads} leads
                 </div>
               </button>
             ))}
@@ -184,57 +186,6 @@ export default function AdSets() {
                   ))}
                 </div>
               </div>
-
-              {selectedAdSet.ads?.length > 0 && (
-                <div className="chart-card p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                      Ads in this Ad Set ({selectedAdSet.ads.length})
-                    </h3>
-                    <button
-                      onClick={() => navigate(`/ads?adset=${selectedAdSet.adSetId}`)}
-                      className="text-xs flex items-center gap-1"
-                      style={{ color: "hsl(var(--brand))" }}
-                    >
-                      View All Ads <ArrowRight size={11} />
-                    </button>
-                  </div>
-                  <div className="space-y-3">
-                    {selectedAdSet.ads.map((ad) => (
-                      <div
-                        key={ad.adId}
-                        className="flex items-center gap-4 p-3 rounded-lg hover:bg-muted transition-colors cursor-pointer"
-                        style={{ border: "1px solid hsl(var(--border))" }}
-                        onClick={() => navigate(`/ads?adset=${selectedAdSet.adSetId}&ad=${ad.adId}`)}
-                      >
-                        <img src={ad.thumbnail} alt={ad.name} className="w-14 h-10 rounded-md object-cover shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate" style={{ color: "hsl(var(--foreground))" }}>{ad.name}</div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {ad.fatigue && <span className="text-xs px-1.5 py-0.5 rounded-full alert-warning">⚠ Fatigue</span>}
-                            <span className={cn("text-xs px-1.5 py-0.5 rounded-full font-medium", ad.status === "Active" ? "status-active" : "status-paused")}>{ad.status}</span>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4 text-xs font-mono text-right shrink-0">
-                          <div>
-                            <div className="font-semibold" style={{ color: "hsl(var(--foreground))" }}>₹{ad.spend.toLocaleString("en-IN")}</div>
-                            <div style={{ color: "hsl(var(--muted-foreground))" }}>Spend</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold" style={{ color: "hsl(var(--metric-positive))" }}>{ad.leads}</div>
-                            <div style={{ color: "hsl(var(--muted-foreground))" }}>Leads</div>
-                          </div>
-                          <div>
-                            <div className="font-semibold" style={{ color: "hsl(var(--foreground))" }}>{ad.ctr.toFixed(2)}%</div>
-                            <div style={{ color: "hsl(var(--muted-foreground))" }}>CTR</div>
-                          </div>
-                        </div>
-                        <ArrowRight size={14} style={{ color: "hsl(var(--muted-foreground))" }} className="shrink-0" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>

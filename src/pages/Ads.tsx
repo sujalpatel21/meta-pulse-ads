@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useDashboard } from "@/components/layout/Layout";
-import { Ad, AdSet } from "@/data/mockData";
-import { fetchAds } from "@/services/metaService";
-import { getDateRangeFromPreset } from "@/services/metaService";
+import { Ad } from "@/data/mockData";
+import { fetchAds, getDateRangeFromPreset } from "@/services/metaService";
 import { ArrowLeft, AlertTriangle, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Ads() {
-  const { selectedAccount, campaigns, dateRange, liveMode } = useDashboard();
+  const { campaigns, dateRange, liveMode } = useDashboard();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const adSetId = searchParams.get("adset");
@@ -22,28 +21,31 @@ export default function Ads() {
   useEffect(() => {
     const loadAds = async () => {
       setLoading(true);
-
-      // First try to find from inline campaign data
       let foundAds: Ad[] = [];
-      for (const c of campaigns) {
-        for (const as of (c.adSets || [])) {
-          if (!adSetId || as.adSetId === adSetId) {
-            foundAds = as.ads || [];
-            setAdSetName(as.name);
-            break;
-          }
-        }
-        if (foundAds.length > 0) break;
-      }
 
-      // If no inline ads and live mode, fetch from API
-      if (foundAds.length === 0 && adSetId && liveMode) {
+      // Always fetch from API in live mode
+      if (adSetId && liveMode) {
         try {
           const dr = getDateRangeFromPreset(dateRange);
           foundAds = await fetchAds(adSetId, dr);
           setAdSetName(adSetId);
-        } catch {
+        } catch (e) {
+          console.warn("Failed to fetch ads:", e);
           foundAds = [];
+        }
+      }
+
+      // Fallback: try inline data from campaigns (mock mode)
+      if (foundAds.length === 0 && !liveMode) {
+        for (const c of campaigns) {
+          for (const as of (c.adSets || [])) {
+            if (!adSetId || as.adSetId === adSetId) {
+              foundAds = as.ads || [];
+              setAdSetName(as.name);
+              break;
+            }
+          }
+          if (foundAds.length > 0) break;
         }
       }
 
@@ -236,7 +238,7 @@ export default function Ads() {
                           key={ad.adId}
                           onClick={() => setSelectedAd(ad)}
                           className="cursor-pointer"
-                          style={selectedAd.adId === ad.adId ? { background: "hsl(var(--brand)/0.05)" } : {}}
+                          style={selectedAd?.adId === ad.adId ? { background: "hsl(var(--brand)/0.05)" } : {}}
                         >
                           <td>
                             <div className="flex items-center gap-2">

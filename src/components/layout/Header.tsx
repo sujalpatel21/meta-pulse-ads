@@ -1,6 +1,6 @@
-import { Menu, ChevronDown, Calendar, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { Menu, ChevronDown, Calendar, RefreshCw, Wifi, WifiOff, Search } from "lucide-react";
 import { useDashboard } from "./Layout";
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 const dateRangeOptions = [
@@ -32,9 +32,29 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const [accountOpen, setAccountOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [compareOpen, setCompareOpen] = useState(false);
+  const [accountSearch, setAccountSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const dateLabel = dateRangeOptions.find((d) => d.value === dateRange)?.label || "Last 7 Days";
   const compareLabel = compareModeOptions.find((c) => c.value === compareMode)?.label || "No Comparison";
+
+  // Focus search input when account dropdown opens
+  useEffect(() => {
+    if (accountOpen && searchInputRef.current) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+    if (!accountOpen) setAccountSearch("");
+  }, [accountOpen]);
+
+  const filteredAccounts = useMemo(() => {
+    if (!accountSearch.trim()) return accounts;
+    const q = accountSearch.toLowerCase();
+    return accounts.filter(
+      (a) =>
+        a.accountName.toLowerCase().includes(q) ||
+        a.accountId.toLowerCase().includes(q)
+    );
+  }, [accounts, accountSearch]);
 
   if (!selectedAccount) return null;
 
@@ -64,33 +84,59 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           {liveMode ? "Live" : "Mock"}
         </div>
 
-        {/* Account selector */}
+        {/* Account selector with search */}
         <Dropdown
           open={accountOpen}
           onToggle={() => { setAccountOpen(!accountOpen); setDateOpen(false); setCompareOpen(false); }}
           label={
-            <span className="text-sm font-medium" style={{ color: "hsl(var(--foreground))" }}>
+            <span className="text-sm font-medium truncate max-w-[200px]" style={{ color: "hsl(var(--foreground))" }}>
               {selectedAccount.accountName}
             </span>
           }
           badge="Ad Account"
+          wide
         >
-          {accounts.map((account) => (
-            <button
-              key={account.accountId}
-              onClick={() => { setSelectedAccount(account); setAccountOpen(false); }}
-              className={cn(
-                "w-full text-left px-3 py-2 text-sm rounded-md transition-colors hover:bg-muted",
-                selectedAccount.accountId === account.accountId && "bg-muted"
-              )}
-              style={{ color: "hsl(var(--foreground))" }}
-            >
-              <div className="font-medium">{account.accountName}</div>
-              <div className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-                {account.accountId} · {account.currency}
+          <div className="p-2 border-b" style={{ borderColor: "hsl(var(--border))" }}>
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded-md" style={{ background: "hsl(var(--muted))" }}>
+              <Search size={12} style={{ color: "hsl(var(--muted-foreground))" }} />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search accounts..."
+                value={accountSearch}
+                onChange={(e) => setAccountSearch(e.target.value)}
+                className="bg-transparent border-none outline-none text-xs flex-1"
+                style={{ color: "hsl(var(--foreground))" }}
+              />
+            </div>
+          </div>
+          <div className="max-h-[300px] overflow-y-auto p-1">
+            {filteredAccounts.length === 0 ? (
+              <div className="text-xs text-center py-4" style={{ color: "hsl(var(--muted-foreground))" }}>
+                No accounts found
               </div>
-            </button>
-          ))}
+            ) : (
+              filteredAccounts.map((account) => (
+                <button
+                  key={account.accountId}
+                  onClick={() => { setSelectedAccount(account); setAccountOpen(false); }}
+                  className={cn(
+                    "w-full text-left px-3 py-2 text-sm rounded-md transition-colors hover:bg-muted",
+                    selectedAccount.accountId === account.accountId && "bg-muted"
+                  )}
+                  style={{ color: "hsl(var(--foreground))" }}
+                >
+                  <div className="font-medium text-xs truncate">{account.accountName}</div>
+                  <div className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+                    {account.accountId} · {account.currency}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+          <div className="p-2 border-t text-xs text-center" style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}>
+            {accounts.length} accounts total
+          </div>
         </Dropdown>
       </div>
 
@@ -171,9 +217,10 @@ interface DropdownProps {
   badge?: string;
   children: React.ReactNode;
   align?: "left" | "right";
+  wide?: boolean;
 }
 
-function Dropdown({ open, onToggle, label, badge, children, align = "left" }: DropdownProps) {
+function Dropdown({ open, onToggle, label, badge, children, align = "left", wide }: DropdownProps) {
   return (
     <div className="relative">
       <button
@@ -200,8 +247,9 @@ function Dropdown({ open, onToggle, label, badge, children, align = "left" }: Dr
       {open && (
         <div
           className={cn(
-            "absolute top-full mt-1 min-w-[200px] rounded-xl border p-1 z-50 shadow-xl animate-fade-in",
-            align === "right" ? "right-0" : "left-0"
+            "absolute top-full mt-1 rounded-xl border z-50 shadow-xl animate-fade-in",
+            align === "right" ? "right-0" : "left-0",
+            wide ? "min-w-[300px]" : "min-w-[200px] p-1"
           )}
           style={{
             background: "hsl(var(--popover))",
