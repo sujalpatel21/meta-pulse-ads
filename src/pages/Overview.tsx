@@ -8,6 +8,7 @@ import AlertsBanner from "@/components/alerts/AlertsBanner";
 
 export default function Overview() {
   const { selectedAccount, campaigns, campaignsLoading: loading, apiError } = useDashboard();
+  const accountName = selectedAccount?.accountName || "Loading...";
 
   const kpis = computeKPIs(campaigns);
   const kpiData = buildKPIData(
@@ -24,7 +25,7 @@ export default function Overview() {
           Overview Dashboard
         </h1>
         <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>
-          {selectedAccount.accountName} · {campaigns.length} campaigns
+          {accountName} · {campaigns.length} campaigns
         </p>
       </div>
 

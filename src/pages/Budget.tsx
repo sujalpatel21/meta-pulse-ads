@@ -27,7 +27,7 @@ export default function Budget() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-xl font-bold" style={{ color: "hsl(var(--foreground))" }}>Budget & Goals</h1>
-        <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{selectedAccount.accountName}</p>
+        <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>{selectedAccount?.accountName || ""}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

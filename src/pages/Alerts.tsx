@@ -29,7 +29,7 @@ export default function Alerts() {
     <div className="space-y-6 animate-fade-in">
       <div>
         <h1 className="text-xl font-bold" style={{ color: "hsl(var(--foreground))" }}>Smart Alerts</h1>
-        <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Automated performance alerts for {selectedAccount.accountName}</p>
+        <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Automated performance alerts for {selectedAccount?.accountName || ""}</p>
       </div>
 
       <div className="grid grid-cols-3 gap-4">

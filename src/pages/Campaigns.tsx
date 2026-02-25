@@ -50,7 +50,7 @@ export default function Campaigns() {
         </button>
         <div>
           <h1 className="text-xl font-bold" style={{ color: "hsl(var(--foreground))" }}>Campaigns</h1>
-          <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>{selectedAccount.accountName}</p>
+          <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>{selectedAccount?.accountName || ""}</p>
         </div>
       </div>
 
