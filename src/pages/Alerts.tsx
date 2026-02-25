@@ -1,18 +1,22 @@
-import { useEffect, useState } from "react";
 import { useDashboard } from "@/components/layout/Layout";
+import { useState, useEffect } from "react";
 import { generateAlerts, Alert } from "@/services/metaService";
 import { AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function Alerts() {
-  const { selectedAccount } = useDashboard();
+  const { selectedAccount, campaigns, campaignsLoading } = useDashboard();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (campaignsLoading || campaigns.length === 0) {
+      setLoading(campaignsLoading);
+      return;
+    }
     setLoading(true);
-    generateAlerts(selectedAccount.campaigns).then((a) => { setAlerts(a); setLoading(false); });
-  }, [selectedAccount]);
+    generateAlerts(campaigns).then((a) => { setAlerts(a); setLoading(false); });
+  }, [campaigns, campaignsLoading]);
 
   const critical = alerts.filter((a) => a.type === "critical");
   const warning = alerts.filter((a) => a.type === "warning");
@@ -28,12 +32,11 @@ export default function Alerts() {
         <p className="text-sm mt-0.5" style={{ color: "hsl(var(--muted-foreground))" }}>Automated performance alerts for {selectedAccount.accountName}</p>
       </div>
 
-      {/* Summary */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: "Critical", count: critical.length, type: "critical", cls: "alert-critical" },
-          { label: "Warnings", count: warning.length, type: "warning", cls: "alert-warning" },
-          { label: "Healthy", count: healthy.length, type: "healthy", cls: "alert-healthy" },
+          { label: "Critical", count: critical.length, cls: "alert-critical" },
+          { label: "Warnings", count: warning.length, cls: "alert-warning" },
+          { label: "Healthy", count: healthy.length, cls: "alert-healthy" },
         ].map((s) => (
           <div key={s.label} className={cn("p-5 rounded-xl text-center", s.cls)}>
             <div className="text-3xl font-bold font-mono">{s.count}</div>

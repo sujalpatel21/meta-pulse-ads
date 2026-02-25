@@ -4,9 +4,9 @@ import { computeKPIs } from "@/data/mockData";
 import { cn } from "@/lib/utils";
 
 export default function Budget() {
-  const { selectedAccount } = useDashboard();
-  const kpis = computeKPIs(selectedAccount.campaigns);
-  const totalBudget = selectedAccount.campaigns.reduce((s, c) => s + c.budget, 0);
+  const { selectedAccount, campaigns } = useDashboard();
+  const kpis = computeKPIs(campaigns);
+  const totalBudget = campaigns.reduce((s, c) => s + c.budget, 0);
 
   const [targetCPL, setTargetCPL] = useState(300);
   const [targetROAS, setTargetROAS] = useState(3);
@@ -31,7 +31,6 @@ export default function Budget() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Goal Settings */}
         <div className="chart-card p-5">
           <h3 className="text-sm font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>⚙️ Set Goals</h3>
           <div className="space-y-5">
@@ -56,7 +55,6 @@ export default function Budget() {
           </div>
         </div>
 
-        {/* Budget Status */}
         <div className="chart-card p-5">
           <h3 className="text-sm font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>📊 Budget Tracker</h3>
           <div className="mb-4">
@@ -99,7 +97,6 @@ export default function Budget() {
         </div>
       </div>
 
-      {/* Goal Achievement */}
       <div className="chart-card p-5">
         <h3 className="text-sm font-semibold mb-4" style={{ color: "hsl(var(--foreground))" }}>🎯 Goal Achievement</h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
