@@ -12,6 +12,7 @@ import Alerts from "./pages/Alerts";
 import Budget from "./pages/Budget";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import AIIntelligence from "./pages/AIIntelligence";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
         <Layout>
           <Routes>
             <Route path="/" element={<Overview />} />
+            <Route path="/ai-intelligence" element={<AIIntelligence />} />
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/adsets" element={<AdSets />} />
             <Route path="/ads" element={<Ads />} />
