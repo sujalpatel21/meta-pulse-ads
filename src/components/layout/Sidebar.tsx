@@ -52,7 +52,7 @@ export default function Sidebar({ open, onToggle }: SidebarProps) {
         </div>
         {open && (
           <div className="animate-fade-in min-w-0">
-            <div className="text-sm font-bold gradient-text leading-none">MetaFlow</div>
+            <div className="text-sm font-bold gradient-text leading-none">MetaPulse</div>
             <div className="text-xs mt-0.5" style={{ color: "hsl(var(--sidebar-foreground))" }}>
               Analytics
             </div>
