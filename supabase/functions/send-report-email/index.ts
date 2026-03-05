@@ -1,20 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 // ================================================================
-// MetaPulse — Send Report Email via Gmail SMTP Relay (HTTP)
+// MetaPulse — Send Report Email
 //
-// Uses Gmail's SMTP relay through raw HTTP/fetch since Supabase
-// Edge Functions (Deno Deploy) block direct TCP/SMTP connections.
-//
-// IMPORTANT: The "from" address MUST match the SMTP_EMAIL (Gmail)
-// used for authentication, otherwise Gmail rejects the send.
+// KEY FIX: The "from" address MUST match the SMTP_EMAIL (Gmail)
+// used for authentication. Gmail rejects sender mismatches.
 //
 // Required Supabase secrets:
 //   SMTP_EMAIL    — your Gmail address (e.g. user@gmail.com)
-//   SMTP_PASSWORD — Gmail App Password (16-char, no spaces)
-//                   Generate at: https://myaccount.google.com/apppasswords
+//   SMTP_PASSWORD — Gmail App Password (16-char)
 // ================================================================
 
 const corsHeaders = {
@@ -22,39 +17,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-/** Build a raw MIME email message */
-function buildMimeMessage(
-  from: string,
-  to: string,
-  subject: string,
-  textBody: string,
-  htmlBody: string
-): string {
-  const boundary = `----=_Part_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-
-  return [
-    `From: ${from}`,
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    `MIME-Version: 1.0`,
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    ``,
-    `--${boundary}`,
-    `Content-Type: text/plain; charset=UTF-8`,
-    `Content-Transfer-Encoding: 7bit`,
-    ``,
-    textBody,
-    ``,
-    `--${boundary}`,
-    `Content-Type: text/html; charset=UTF-8`,
-    `Content-Transfer-Encoding: 7bit`,
-    ``,
-    htmlBody,
-    ``,
-    `--${boundary}--`,
-  ].join("\r\n");
-}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -89,7 +51,7 @@ serve(async (req) => {
       });
     }
 
-    // ── Parse request body ────────────────────────────────────────
+    // ── Parse body ────────────────────────────────────────────────
     const { recipientEmail, subject, messageBody } = await req.json();
 
     if (!recipientEmail || !subject) {
@@ -105,14 +67,12 @@ serve(async (req) => {
 
     if (!smtpEmail || !smtpPassword) {
       return new Response(
-        JSON.stringify({
-          error: "SMTP credentials not configured. Set SMTP_EMAIL and SMTP_PASSWORD in Supabase secrets.",
-        }),
+        JSON.stringify({ error: "SMTP credentials not configured. Set SMTP_EMAIL and SMTP_PASSWORD." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ── Build email content ──────────────────────────────────────
+    // ── Email content ─────────────────────────────────────────────
     const emailBody = messageBody || `Hello,
 
 Please find the latest Meta Ads performance report generated from MetaPulse Analytics.
@@ -142,126 +102,62 @@ MetaPulse Analytics`;
       </div>
     `;
 
-    // ── KEY FIX: Use the SAME Gmail address as both sender and auth ──
-    // Gmail REQUIRES the "from" address to match the authenticated account.
-    const fromAddress = smtpEmail;
+    // ── Send email via Resend HTTP API ────────────────────────────
+    // Supabase Edge Functions (Deno Deploy) block outbound SMTP/TCP.
+    // We use Resend API if RESEND_API_KEY is set, otherwise try SMTP.
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
-    // Build MIME message
-    const rawMessage = buildMimeMessage(
-      `MetaPulse Analytics <${fromAddress}>`,
-      recipientEmail,
-      subject,
-      emailBody,
-      htmlContent
-    );
-
-    // ── Send via Gmail SMTP using Deno's built-in TLS connect ────
-    // Since Supabase Edge Functions may block port 587, we try
-    // port 465 (SSL) first, then fall back to the Gmail API approach.
-    let sent = false;
-    let sendError = "";
-
-    // Approach: Use Gmail's SMTP relay via Deno.connectTls (port 465)
-    try {
-      const encoder = new TextEncoder();
-      const decoder = new TextDecoder();
-
-      const conn = await Deno.connectTls({
-        hostname: "smtp.gmail.com",
-        port: 465,
+    if (resendApiKey) {
+      // ── Resend API (recommended) ─────────────────────────────
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: Deno.env.get("RESEND_FROM_EMAIL") || `MetaPulse Analytics <onboarding@resend.dev>`,
+          to: [recipientEmail],
+          subject,
+          text: emailBody,
+          html: htmlContent,
+        }),
       });
 
-      async function readResponse(): Promise<string> {
-        const buf = new Uint8Array(4096);
-        const n = await conn.read(buf);
-        return n ? decoder.decode(buf.subarray(0, n)) : "";
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Resend error (${res.status}): ${errText}`);
       }
 
-      async function sendCmd(cmd: string): Promise<string> {
-        await conn.write(encoder.encode(cmd + "\r\n"));
-        // Small delay to let server respond
-        await new Promise((r) => setTimeout(r, 200));
-        return await readResponse();
-      }
+      console.log("Email sent via Resend API");
+    } else {
+      // ── SMTP fallback via denomailer ─────────────────────────
+      // FIX: from address MUST match smtpEmail (Gmail rejects mismatches)
+      // FIX: Use port 465 (direct SSL) — port 587 is blocked on Deno Deploy
+      const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
 
-      // Read greeting
-      await readResponse();
-
-      // EHLO
-      await sendCmd("EHLO metapulse.local");
-
-      // AUTH LOGIN
-      await sendCmd("AUTH LOGIN");
-      await sendCmd(base64Encode(new TextEncoder().encode(smtpEmail)));
-      const authRes = await sendCmd(base64Encode(new TextEncoder().encode(smtpPassword)));
-
-      if (!authRes.startsWith("235")) {
-        throw new Error(`SMTP auth failed: ${authRes.trim()}`);
-      }
-
-      // MAIL FROM — MUST be the same Gmail address
-      const mailFromRes = await sendCmd(`MAIL FROM:<${fromAddress}>`);
-      if (!mailFromRes.startsWith("250")) {
-        throw new Error(`MAIL FROM rejected: ${mailFromRes.trim()}`);
-      }
-
-      // RCPT TO
-      const rcptRes = await sendCmd(`RCPT TO:<${recipientEmail}>`);
-      if (!rcptRes.startsWith("250")) {
-        throw new Error(`RCPT TO rejected: ${rcptRes.trim()}`);
-      }
-
-      // DATA
-      await sendCmd("DATA");
-      const dataRes = await sendCmd(rawMessage + "\r\n.");
-      if (!dataRes.startsWith("250")) {
-        throw new Error(`DATA rejected: ${dataRes.trim()}`);
-      }
-
-      // QUIT
-      await sendCmd("QUIT");
-      conn.close();
-
-      sent = true;
-      console.log(`Email sent via SMTP (port 465) from ${fromAddress} to ${recipientEmail}`);
-    } catch (smtpErr: any) {
-      sendError = smtpErr.message;
-      console.warn("SMTP port 465 failed:", smtpErr.message);
-
-      // Fallback: try denomailer on port 465 (SSL direct)
-      try {
-        const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
-        const client = new SMTPClient({
-          connection: {
-            hostname: "smtp.gmail.com",
-            port: 465,
-            tls: true,
-            auth: {
-              username: smtpEmail,
-              password: smtpPassword,
-            },
+      const client = new SMTPClient({
+        connection: {
+          hostname: "smtp.gmail.com",
+          port: 465,
+          tls: true,
+          auth: {
+            username: smtpEmail,
+            password: smtpPassword,
           },
-        });
+        },
+      });
 
-        await client.send({
-          from: `MetaPulse Analytics <${fromAddress}>`,
-          to: recipientEmail,
-          subject: subject,
-          content: emailBody,
-          html: htmlContent,
-        });
+      await client.send({
+        from: smtpEmail,
+        to: recipientEmail,
+        subject: subject,
+        content: emailBody,
+        html: htmlContent,
+      });
 
-        await client.close();
-        sent = true;
-        console.log(`Email sent via denomailer (port 465) from ${fromAddress} to ${recipientEmail}`);
-      } catch (denomErr: any) {
-        sendError = `Direct SMTP: ${sendError} | Denomailer: ${denomErr.message}`;
-        console.warn("Denomailer fallback also failed:", denomErr.message);
-      }
-    }
-
-    if (!sent) {
-      throw new Error(`All email methods failed. ${sendError}`);
+      await client.close();
+      console.log(`Email sent via SMTP from ${smtpEmail} to ${recipientEmail}`);
     }
 
     // ── Log success ──────────────────────────────────────────────
@@ -280,7 +176,6 @@ MetaPulse Analytics`;
   } catch (error: any) {
     console.error("Email send error:", error);
 
-    // Log failure
     try {
       const authHeader = req.headers.get("Authorization");
       if (authHeader) {
