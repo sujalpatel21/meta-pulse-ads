@@ -14,7 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      email_logs: {
+        Row: {
+          error_message: string | null
+          id: string
+          recipient_email: string
+          sent_at: string
+          status: string
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          error_message?: string | null
+          id?: string
+          recipient_email: string
+          sent_at?: string
+          status?: string
+          subject: string
+          user_id: string
+        }
+        Update: {
+          error_message?: string | null
+          id?: string
+          recipient_email?: string
+          sent_at?: string
+          status?: string
+          subject?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_settings: {
+        Row: {
+          created_at: string
+          id: string
+          smtp_email: string
+          smtp_host: string
+          smtp_password: string
+          smtp_port: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          smtp_email: string
+          smtp_host?: string
+          smtp_password: string
+          smtp_port?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          smtp_email?: string
+          smtp_host?: string
+          smtp_password?: string
+          smtp_port?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
