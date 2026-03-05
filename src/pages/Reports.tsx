@@ -10,6 +10,7 @@ import ReportLeakage from "@/components/reports/ReportLeakage";
 import ReportRecommendations from "@/components/reports/ReportRecommendations";
 import ReportCampaignTable from "@/components/reports/ReportCampaignTable";
 import ReportPreview from "@/components/reports/ReportPreview";
+import EmailReportCard from "@/components/reports/EmailReportCard";
 import { FileText, Download, Mail, Eye, Brain, AlertTriangle, Zap } from "lucide-react";
 
 export default function Reports() {
@@ -125,6 +126,9 @@ export default function Reports() {
 
       {/* Campaign Performance Table */}
       <ReportCampaignTable performance={analysis.campaignPerformance} selectedMetrics={selectedMetrics} />
+
+      {/* Email Report Section */}
+      <EmailReportCard />
 
       {/* Report Preview Modal */}
       {showPreview && (
