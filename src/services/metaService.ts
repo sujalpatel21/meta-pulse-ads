@@ -6,7 +6,7 @@
 // ================================================================
 
 import { supabase } from "@/integrations/supabase/client";
-import { mockClients, Client, Campaign, AdAccount, AdSet, Ad, DailyMetric } from "@/data/mockData";
+import { mockClients, Client, Campaign, AdAccount, AdSet, Ad, DailyMetric, ABTest, getABTestsForAccount, getAllABTests } from "@/data/mockData";
 
 export interface DateRange {
   from: string; // ISO date: "YYYY-MM-DD"
@@ -49,7 +49,7 @@ async function callMetaApi(action: string, params: Record<string, any> = {}): Pr
 export function getDateRangeFromPreset(preset: string): DateRange {
   const today = new Date();
   const fmt = (d: Date) => d.toISOString().split("T")[0];
-  
+
   switch (preset) {
     case "today":
       return { from: fmt(today), to: fmt(today) };
@@ -346,6 +346,26 @@ export async function generateAIInsights(campaigns: Campaign[]): Promise<string[
   );
 
   return insights;
+}
+
+// ── A/B Tests ─────────────────────────────────────────────────────
+
+export async function fetchABTests(
+  accountId?: string,
+  dateRange?: DateRange
+): Promise<ABTest[]> {
+  if (!_useLiveData) {
+    return accountId ? getABTestsForAccount(accountId) : getAllABTests();
+  }
+
+  try {
+    const data = await callMetaApi("get_ab_tests", { accountId, dateRange });
+    return data;
+  } catch (e) {
+    console.warn("Falling back to mock A/B tests:", e);
+    // In live mode, real account IDs won't match mock data — return all mock tests as demo
+    return getAllABTests();
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────

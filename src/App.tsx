@@ -13,6 +13,7 @@ import Budget from "./pages/Budget";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import AIIntelligence from "./pages/AIIntelligence";
+import ABTesting from "./pages/ABTesting";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/adsets" element={<AdSets />} />
             <Route path="/ads" element={<Ads />} />
+            <Route path="/ab-testing" element={<ABTesting />} />
             <Route path="/alerts" element={<Alerts />} />
             <Route path="/budget" element={<Budget />} />
             <Route path="/reports" element={<Reports />} />

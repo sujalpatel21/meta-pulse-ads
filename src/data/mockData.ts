@@ -942,3 +942,271 @@ export function aggregateDailyMetrics(campaigns: Campaign[]): DailyMetric[] {
 
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
 }
+
+// ── A/B Testing Types & Mock Data ─────────────────────────────────
+
+export interface ABTestVariant {
+  variantId: string;
+  variantLabel: string; // "A" | "B" | "C" etc.
+  adName: string;
+  thumbnail: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  leads: number;
+  purchases: number;
+  ctr: number;
+  cpc: number;
+  roas: number;
+  conversionRate: number;
+  dailyMetrics: DailyMetric[];
+}
+
+export interface ABTest {
+  testId: string;
+  testName: string;
+  campaignName: string;
+  campaignId: string;
+  accountId: string;
+  status: "Running" | "Completed" | "Draft";
+  startDate: string;
+  endDate?: string;
+  variants: ABTestVariant[];
+  winnerId?: string; // variantId of winner
+  confidence: number; // 0–100%
+  metric: string; // primary metric for winner determination
+}
+
+const mockABTests: ABTest[] = [
+  {
+    testId: "abt_1",
+    testName: "Summer Offer vs Transformation Video",
+    campaignName: "Fitness Lead Generation",
+    campaignId: "cmp_1",
+    accountId: "act_abc_001",
+    status: "Completed",
+    startDate: "2026-02-01",
+    endDate: "2026-02-28",
+    confidence: 94,
+    metric: "CTR",
+    winnerId: "var_1b",
+    variants: [
+      {
+        variantId: "var_1a",
+        variantLabel: "A",
+        adName: "Summer Offer Creative",
+        thumbnail: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=120&h=90&fit=crop",
+        spend: 8200, impressions: 52000, clicks: 1820, leads: 42, purchases: 5,
+        ctr: 3.5, cpc: 4.5, roas: 2.1, conversionRate: 2.31,
+        dailyMetrics: generateDailyMetrics(585, 3),
+      },
+      {
+        variantId: "var_1b",
+        variantLabel: "B",
+        adName: "Gym Transformation Video",
+        thumbnail: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=120&h=90&fit=crop",
+        spend: 9500, impressions: 61000, clicks: 2310, leads: 58, purchases: 7,
+        ctr: 3.79, cpc: 4.11, roas: 2.6, conversionRate: 2.51,
+        dailyMetrics: generateDailyMetrics(678, 4.1),
+      },
+    ],
+  },
+  {
+    testId: "abt_2",
+    testName: "Carousel vs Testimonial Video",
+    campaignName: "Fitness Lead Generation",
+    campaignId: "cmp_1",
+    accountId: "act_abc_001",
+    status: "Running",
+    startDate: "2026-02-15",
+    confidence: 72,
+    metric: "ROAS",
+    variants: [
+      {
+        variantId: "var_2a",
+        variantLabel: "A",
+        adName: "Membership Drive Carousel",
+        thumbnail: "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=120&h=90&fit=crop",
+        spend: 7300, impressions: 44000, clicks: 1540, leads: 35, purchases: 4,
+        ctr: 3.5, cpc: 4.74, roas: 2.2, conversionRate: 2.27,
+        dailyMetrics: generateDailyMetrics(521, 2.5),
+      },
+      {
+        variantId: "var_2b",
+        variantLabel: "B",
+        adName: "Testimonial Video Ad",
+        thumbnail: "https://images.unsplash.com/photo-1576678927484-cc907957088c?w=120&h=90&fit=crop",
+        spend: 8900, impressions: 58000, clicks: 2100, leads: 52, purchases: 6,
+        ctr: 3.62, cpc: 4.24, roas: 2.5, conversionRate: 2.48,
+        dailyMetrics: generateDailyMetrics(635, 3.7),
+      },
+    ],
+  },
+  {
+    testId: "abt_3",
+    testName: "Supplement Cross-sell vs Women Fitness Reel",
+    campaignName: "Fitness Lead Generation",
+    campaignId: "cmp_1",
+    accountId: "act_abc_001",
+    status: "Completed",
+    startDate: "2026-01-10",
+    endDate: "2026-02-10",
+    confidence: 88,
+    metric: "Leads",
+    winnerId: "var_3b",
+    variants: [
+      {
+        variantId: "var_3a",
+        variantLabel: "A",
+        adName: "Protein Supplement Cross-sell",
+        thumbnail: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=120&h=90&fit=crop",
+        spend: 5800, impressions: 36000, clicks: 1260, leads: 28, purchases: 8,
+        ctr: 3.5, cpc: 4.6, roas: 3.8, conversionRate: 2.22,
+        dailyMetrics: generateDailyMetrics(414, 2),
+      },
+      {
+        variantId: "var_3b",
+        variantLabel: "B",
+        adName: "Women Fitness Reel",
+        thumbnail: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=120&h=90&fit=crop",
+        spend: 7100, impressions: 49000, clicks: 1890, leads: 45, purchases: 6,
+        ctr: 3.86, cpc: 3.76, roas: 2.8, conversionRate: 2.38,
+        dailyMetrics: generateDailyMetrics(507, 3.2),
+      },
+    ],
+  },
+  {
+    testId: "abt_4",
+    testName: "Morning Yoga vs Flexibility Challenge",
+    campaignName: "Yoga & Wellness Program",
+    campaignId: "cmp_2",
+    accountId: "act_abc_001",
+    status: "Running",
+    startDate: "2026-02-20",
+    confidence: 58,
+    metric: "CPC",
+    variants: [
+      {
+        variantId: "var_4a",
+        variantLabel: "A",
+        adName: "Morning Yoga Static",
+        thumbnail: "https://images.unsplash.com/photo-1506629082955-511b1aa562c8?w=120&h=90&fit=crop",
+        spend: 5400, impressions: 33000, clicks: 990, leads: 26, purchases: 4,
+        ctr: 3.0, cpc: 5.45, roas: 2.0, conversionRate: 2.63,
+        dailyMetrics: generateDailyMetrics(385, 1.9),
+      },
+      {
+        variantId: "var_4b",
+        variantLabel: "B",
+        adName: "Flexibility Challenge Video",
+        thumbnail: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=120&h=90&fit=crop",
+        spend: 4900, impressions: 30000, clicks: 900, leads: 23, purchases: 4,
+        ctr: 3.0, cpc: 5.44, roas: 2.1, conversionRate: 2.56,
+        dailyMetrics: generateDailyMetrics(350, 1.6),
+      },
+    ],
+  },
+  {
+    testId: "abt_5",
+    testName: "Whey Protein vs Mass Gainer Creative",
+    campaignName: "Protein Supplement Sales",
+    campaignId: "cmp_3",
+    accountId: "act_abc_001",
+    status: "Draft",
+    startDate: "2026-03-10",
+    confidence: 0,
+    metric: "ROAS",
+    variants: [
+      {
+        variantId: "var_5a",
+        variantLabel: "A",
+        adName: "Whey Protein Offer",
+        thumbnail: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?w=120&h=90&fit=crop",
+        spend: 0, impressions: 0, clicks: 0, leads: 0, purchases: 0,
+        ctr: 0, cpc: 0, roas: 0, conversionRate: 0,
+        dailyMetrics: [],
+      },
+      {
+        variantId: "var_5b",
+        variantLabel: "B",
+        adName: "Mass Gainer Bundle",
+        thumbnail: "https://images.unsplash.com/photo-1512069772995-ec65ed45afd6?w=120&h=90&fit=crop",
+        spend: 0, impressions: 0, clicks: 0, leads: 0, purchases: 0,
+        ctr: 0, cpc: 0, roas: 0, conversionRate: 0,
+        dailyMetrics: [],
+      },
+    ],
+  },
+  {
+    testId: "abt_6",
+    testName: "Luxury Apartment Static vs Video Walkthrough",
+    campaignName: "Luxury Apartments Lead Gen",
+    campaignId: "cmp_9",
+    accountId: "act_sky_001",
+    status: "Completed",
+    startDate: "2026-01-15",
+    endDate: "2026-02-15",
+    confidence: 91,
+    metric: "Leads",
+    winnerId: "var_6b",
+    variants: [
+      {
+        variantId: "var_6a",
+        variantLabel: "A",
+        adName: "3BHK Luxury Static Banner",
+        thumbnail: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=120&h=90&fit=crop",
+        spend: 42000, impressions: 180000, clicks: 4320, leads: 78, purchases: 3,
+        ctr: 2.4, cpc: 9.72, roas: 5.8, conversionRate: 1.81,
+        dailyMetrics: generateDailyMetrics(3000, 5.6),
+      },
+      {
+        variantId: "var_6b",
+        variantLabel: "B",
+        adName: "3D Walkthrough Video",
+        thumbnail: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=120&h=90&fit=crop",
+        spend: 48000, impressions: 200000, clicks: 5200, leads: 112, purchases: 5,
+        ctr: 2.6, cpc: 9.23, roas: 6.8, conversionRate: 2.15,
+        dailyMetrics: generateDailyMetrics(3428, 8),
+      },
+    ],
+  },
+  {
+    testId: "abt_7",
+    testName: "Coding Challenge vs Success Story",
+    campaignName: "Full Stack Developer Course",
+    campaignId: "cmp_17",
+    accountId: "act_edu_001",
+    status: "Running",
+    startDate: "2026-02-25",
+    confidence: 81,
+    metric: "CTR",
+    variants: [
+      {
+        variantId: "var_7a",
+        variantLabel: "A",
+        adName: "Coding Challenge Reel",
+        thumbnail: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=120&h=90&fit=crop",
+        spend: 16200, impressions: 78000, clicks: 3510, leads: 105, purchases: 22,
+        ctr: 4.5, cpc: 4.62, roas: 4.5, conversionRate: 2.99,
+        dailyMetrics: generateDailyMetrics(1157, 7.5),
+      },
+      {
+        variantId: "var_7b",
+        variantLabel: "B",
+        adName: "Alumni Success Story",
+        thumbnail: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=120&h=90&fit=crop",
+        spend: 15800, impressions: 75000, clicks: 3000, leads: 96, purchases: 18,
+        ctr: 4.0, cpc: 5.27, roas: 3.9, conversionRate: 2.56,
+        dailyMetrics: generateDailyMetrics(1128, 6.9),
+      },
+    ],
+  },
+];
+
+export function getABTestsForAccount(accountId: string): ABTest[] {
+  return mockABTests.filter((t) => t.accountId === accountId);
+}
+
+export function getAllABTests(): ABTest[] {
+  return mockABTests;
+}

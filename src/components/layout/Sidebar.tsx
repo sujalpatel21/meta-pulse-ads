@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, TrendingUp, Layers, MousePointer2,
   Bell, Target, FileText, Settings, ChevronLeft,
-  Zap, BarChart3, Wifi, Brain,
+  Zap, BarChart3, Wifi, Brain, FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboard } from "./Layout";
@@ -13,6 +13,7 @@ const navItems = [
   { icon: TrendingUp, label: "Campaigns", path: "/campaigns" },
   { icon: Layers, label: "Ad Sets", path: "/adsets" },
   { icon: MousePointer2, label: "Ads", path: "/ads" },
+  { icon: FlaskConical, label: "A/B Testing", path: "/ab-testing" },
   { icon: Target, label: "Budget & Goals", path: "/budget" },
   { icon: Bell, label: "Alerts", path: "/alerts" },
   { icon: FileText, label: "Reports", path: "/reports" },
