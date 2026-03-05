@@ -19,14 +19,13 @@ export default function Reports() {
   const kpis = computeKPIs(activeCampaigns);
   const dailyMetrics = aggregateDailyMetrics(activeCampaigns);
 
-  // Report config state
   const [reportDateRange, setReportDateRange] = useState<string>("last30");
   const [reportLevels, setReportLevels] = useState<string[]>(["campaign"]);
   const [selectedMetrics, setSelectedMetrics] = useState<MetricKey[]>(["spend", "leads", "ctr", "cpl", "roas"]);
   const [reportGenerated, setReportGenerated] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
 
-  // AI Analysis
   const analysis = useMemo(() => generateReportAnalysis(activeCampaigns), [activeCampaigns]);
 
   const handleGenerateReport = () => {
@@ -68,13 +67,15 @@ export default function Reports() {
           <button onClick={handleExportCSV} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors">
             <Download size={14} /> CSV
           </button>
+          <button onClick={() => setShowEmailModal(true)} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors">
+            <Mail size={14} /> Send Report Email
+          </button>
           <button onClick={() => setShowPreview(true)} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity">
             <Eye size={14} /> Preview Report
           </button>
         </div>
       </div>
 
-      {/* Section 1: Report Generator */}
       <ReportGenerator
         dateRange={reportDateRange}
         setDateRange={setReportDateRange}
@@ -86,13 +87,9 @@ export default function Reports() {
         reportGenerated={reportGenerated}
       />
 
-      {/* KPI Cards */}
       <ReportKPICards kpis={kpis} campaigns={activeCampaigns} />
-
-      {/* Charts */}
       <ReportCharts dailyMetrics={dailyMetrics} campaigns={activeCampaigns} />
 
-      {/* AI Analysis Section */}
       <div className="ai-insight-box p-5">
         <div className="flex items-center gap-2 mb-4">
           <Brain size={18} className="text-primary" />
@@ -115,20 +112,13 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Bottleneck Detection */}
       <ReportBottlenecks bottlenecks={analysis.bottlenecks} />
-
-      {/* Budget Leakage */}
       <ReportLeakage leakage={analysis.leakage} totalLeakage={analysis.totalLeakage} />
-
-      {/* AI Recommendations */}
       <ReportRecommendations recommendations={analysis.recommendations} />
-
-      {/* Campaign Performance Table */}
       <ReportCampaignTable performance={analysis.campaignPerformance} selectedMetrics={selectedMetrics} />
 
-      {/* Email Report Section */}
-      <EmailReportCard />
+      {/* Email Modal */}
+      <EmailReportCard open={showEmailModal} onOpenChange={setShowEmailModal} />
 
       {/* Report Preview Modal */}
       {showPreview && (

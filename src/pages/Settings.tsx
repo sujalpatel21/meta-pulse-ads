@@ -1,6 +1,5 @@
 import { useDashboard } from "@/components/layout/Layout";
 import { Wifi, WifiOff } from "lucide-react";
-import EmailSettingsCard from "@/components/settings/EmailSettingsCard";
 
 export default function Settings() {
   const { liveMode, accounts } = useDashboard();
@@ -37,9 +36,6 @@ export default function Settings() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Email Settings Card */}
-        <EmailSettingsCard />
-
         {/* Meta API Integration */}
         <div className="chart-card p-5">
           <h3 className="text-sm font-semibold mb-1 text-foreground">🔗 Meta API Integration</h3>

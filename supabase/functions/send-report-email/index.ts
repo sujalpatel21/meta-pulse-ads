@@ -40,7 +40,7 @@ serve(async (req) => {
       });
     }
 
-    const { recipientEmail, subject, messageBody, reportHtml } = await req.json();
+    const { recipientEmail, subject, messageBody } = await req.json();
 
     if (!recipientEmail || !subject) {
       return new Response(JSON.stringify({ error: "recipientEmail and subject are required" }), {
@@ -49,17 +49,16 @@ serve(async (req) => {
       });
     }
 
-    // Fetch user's SMTP settings
-    const { data: settings, error: settingsError } = await supabase
-      .from("email_settings")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
+    // Read SMTP credentials from environment variables
+    const smtpEmail = Deno.env.get("SMTP_EMAIL");
+    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
+    const smtpHost = Deno.env.get("SMTP_HOST") || "smtp.gmail.com";
+    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "587");
 
-    if (settingsError || !settings) {
+    if (!smtpEmail || !smtpPassword) {
       return new Response(
-        JSON.stringify({ error: "Email settings not configured. Please set up your Gmail SMTP in Settings." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "SMTP credentials not configured on the server." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -67,19 +66,17 @@ serve(async (req) => {
 
 Please find the latest Meta Ads performance report generated from MetaPulse Analytics.
 
-Report includes:
-- Spend & Budget Analysis
-- Leads & Conversion Metrics
-- ROAS Performance
-- AI Performance Insights
-- Campaign Analysis
-- Actionable Recommendations
+This report includes:
+• Campaign performance
+• Spend analysis
+• ROAS metrics
+• AI insights
+• Optimization recommendations
 
 Regards,
 MetaPulse Analytics`;
 
-    // Build HTML email
-    const htmlContent = reportHtml || `
+    const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 24px; border-radius: 12px; margin-bottom: 20px;">
           <h1 style="color: white; margin: 0; font-size: 22px;">📊 MetaPulse Performance Report</h1>
@@ -94,21 +91,20 @@ MetaPulse Analytics`;
       </div>
     `;
 
-    // Send email using denomailer
     const client = new SMTPClient({
       connection: {
-        hostname: settings.smtp_host,
-        port: settings.smtp_port,
+        hostname: smtpHost,
+        port: smtpPort,
         tls: true,
         auth: {
-          username: settings.smtp_email,
-          password: settings.smtp_password,
+          username: smtpEmail,
+          password: smtpPassword,
         },
       },
     });
 
     await client.send({
-      from: settings.smtp_email,
+      from: `MetaPulse Analytics <${smtpEmail}>`,
       to: recipientEmail,
       subject: subject,
       content: emailBody,
@@ -131,7 +127,6 @@ MetaPulse Analytics`;
   } catch (error: any) {
     console.error("Email send error:", error);
 
-    // Try to log failed attempt
     try {
       const authHeader = req.headers.get("Authorization");
       if (authHeader) {
@@ -142,22 +137,19 @@ MetaPulse Analytics`;
         });
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          const body = await req.clone().json().catch(() => ({}));
           await supabase.from("email_logs").insert({
             user_id: user.id,
-            recipient_email: body.recipientEmail || "unknown",
-            subject: body.subject || "unknown",
+            recipient_email: "unknown",
+            subject: "unknown",
             status: "failed",
             error_message: error.message,
           });
         }
       }
-    } catch (_) {
-      // ignore logging errors
-    }
+    } catch (_) {}
 
     return new Response(
-      JSON.stringify({ error: `Failed to send email: ${error.message}. Please verify your Gmail App Password.` }),
+      JSON.stringify({ error: "Email failed to send. Please try again later." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
