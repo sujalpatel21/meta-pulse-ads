@@ -21,12 +21,10 @@ serve(async (req) => {
       );
     }
 
-    const smtpEmail = Deno.env.get("SMTP_EMAIL") || "sujalpatel6172@gmail.com";
-    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
-
-    if (!smtpPassword) {
+    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    if (!resendApiKey) {
       return new Response(
-        JSON.stringify({ error: "SMTP_PASSWORD not configured" }),
+        JSON.stringify({ error: "RESEND_API_KEY not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -48,31 +46,31 @@ serve(async (req) => {
       </div>
     `;
 
-    // Use Gmail SMTP via denomailer
-    const { SMTPClient } = await import("https://deno.land/x/denomailer@1.6.0/mod.ts");
+    // Use Resend HTTP API (SMTP is blocked on edge functions)
+    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "MetaPulse Analytics <onboarding@resend.dev>";
 
-    const client = new SMTPClient({
-      connection: {
-        hostname: Deno.env.get("SMTP_HOST") || "smtp.gmail.com",
-        port: 587,
-        tls: false,
-        auth: {
-          username: smtpEmail,
-          password: smtpPassword,
-        },
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        from: fromEmail,
+        to: [recipientEmail],
+        subject,
+        text: emailBody,
+        html: htmlContent,
+      }),
     });
 
-    await client.send({
-      from: smtpEmail,
-      to: recipientEmail,
-      subject: subject,
-      content: emailBody,
-      html: htmlContent,
-    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Resend error (${res.status}): ${errText}`);
+    }
 
-    await client.close();
-    console.log(`Email sent from ${smtpEmail} to ${recipientEmail}`);
+    const result = await res.json();
+    console.log(`Email sent via Resend to ${recipientEmail}`, result);
 
     return new Response(
       JSON.stringify({ success: true, message: "Report sent successfully!" }),
