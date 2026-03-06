@@ -73,6 +73,13 @@ export function getDateRangeFromPreset(preset: string): DateRange {
       d.setDate(d.getDate() - 29);
       return { from: fmt(d), to: fmt(today) };
     }
+    case "thisWeek": {
+      const day = today.getDay(); // 0=Sun
+      const diff = day === 0 ? 6 : day - 1; // Monday as start
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - diff);
+      return { from: fmt(monday), to: fmt(today) };
+    }
     case "thisMonth": {
       const first = new Date(today.getFullYear(), today.getMonth(), 1);
       return { from: fmt(first), to: fmt(today) };
