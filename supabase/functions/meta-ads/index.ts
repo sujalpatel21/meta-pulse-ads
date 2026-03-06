@@ -79,10 +79,13 @@ Deno.serve(async (req) => {
       case "get_campaigns": {
         if (!accountId) throw new Error("accountId required");
         const acctId = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
+        const insightsTimeRange = dateRange?.from && dateRange?.to
+          ? `.time_range(${JSON.stringify({ since: dateRange.from, until: dateRange.to })})`
+          : "";
         const fields =
-          "name,objective,status,daily_budget,lifetime_budget,insights{spend,impressions,clicks,reach,actions,cost_per_action_type,purchase_roas,ctr,cpc}";
+          `name,objective,status,daily_budget,lifetime_budget,insights${insightsTimeRange}{spend,impressions,clicks,reach,actions,cost_per_action_type,purchase_roas,ctr,cpc}`;
         const data = await metaFetchAll(
-          `${META_BASE}/${acctId}/campaigns?fields=${fields}&limit=100${timeRange}`
+          `${META_BASE}/${acctId}/campaigns?fields=${encodeURIComponent(fields)}&limit=100`
         );
         result = data.map((c: any) => transformCampaign(c));
         break;
@@ -90,10 +93,13 @@ Deno.serve(async (req) => {
 
       case "get_adsets": {
         if (!campaignId) throw new Error("campaignId required");
-        const fields =
-          "name,status,daily_budget,lifetime_budget,targeting,insights{spend,impressions,clicks,reach,frequency,actions,ctr,cpc}";
+        const adsetInsightsTR = dateRange?.from && dateRange?.to
+          ? `.time_range(${JSON.stringify({ since: dateRange.from, until: dateRange.to })})`
+          : "";
+        const adsetFields =
+          `name,status,daily_budget,lifetime_budget,targeting,insights${adsetInsightsTR}{spend,impressions,clicks,reach,frequency,actions,ctr,cpc}`;
         const data = await metaFetchAll(
-          `${META_BASE}/${campaignId}/adsets?fields=${fields}&limit=100${timeRange}`
+          `${META_BASE}/${campaignId}/adsets?fields=${encodeURIComponent(adsetFields)}&limit=100`
         );
         result = data.map((as: any) => transformAdSet(as));
         break;
@@ -101,10 +107,13 @@ Deno.serve(async (req) => {
 
       case "get_ads": {
         if (!adSetId) throw new Error("adSetId required");
-        const fields =
-          "name,status,creative{thumbnail_url},insights{spend,impressions,clicks,actions,purchase_roas,ctr,cpc}";
+        const adInsightsTR = dateRange?.from && dateRange?.to
+          ? `.time_range(${JSON.stringify({ since: dateRange.from, until: dateRange.to })})`
+          : "";
+        const adFields =
+          `name,status,creative{thumbnail_url},insights${adInsightsTR}{spend,impressions,clicks,actions,purchase_roas,ctr,cpc}`;
         const data = await metaFetchAll(
-          `${META_BASE}/${adSetId}/ads?fields=${fields}&limit=100${timeRange}`
+          `${META_BASE}/${adSetId}/ads?fields=${encodeURIComponent(adFields)}&limit=100`
         );
         result = data.map((ad: any) => transformAd(ad));
         break;
