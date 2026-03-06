@@ -47,10 +47,10 @@ Deno.serve(async (req) => {
       let allData: any[] = [];
       let nextUrl: string | null = url;
       while (nextUrl) {
-        const res = await fetch(nextUrl, {
+        const res: Response = await fetch(nextUrl, {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
-        const json = await res.json();
+        const json: any = await res.json();
         if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
         allData = allData.concat(json.data || []);
         nextUrl = json.paging?.next || null;

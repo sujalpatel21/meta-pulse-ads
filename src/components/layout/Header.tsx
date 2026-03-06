@@ -6,10 +6,11 @@ import { cn } from "@/lib/utils";
 const dateRangeOptions = [
   { value: "today", label: "Today" },
   { value: "yesterday", label: "Yesterday" },
+  { value: "thisWeek", label: "This Week" },
   { value: "last7", label: "Last 7 Days" },
   { value: "last14", label: "Last 14 Days" },
-  { value: "last30", label: "Last 30 Days" },
   { value: "thisMonth", label: "This Month" },
+  { value: "last30", label: "Last 30 Days" },
   { value: "lastMonth", label: "Last Month" },
 ];
 
