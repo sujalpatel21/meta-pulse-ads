@@ -5,9 +5,11 @@ import { AdSet } from "@/data/mockData";
 import { fetchAdSets, getDateRangeFromPreset } from "@/services/metaService";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency, formatCurrencyFixed } from "@/lib/currency";
 
 export default function AdSets() {
   const { selectedAccount, campaigns, dateRange, liveMode } = useDashboard();
+  const currency = selectedAccount?.currency || "INR";
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const campaignId = searchParams.get("campaign");
@@ -121,7 +123,7 @@ export default function AdSets() {
                   {as.name}
                 </div>
                 <div className="text-xs mt-1" style={{ color: "hsl(var(--muted-foreground))" }}>
-                  ₹{as.spend.toLocaleString("en-IN")} · {as.leads} leads
+                  {formatCurrency(as.spend, currency)} · {as.leads} leads
                 </div>
               </button>
             ))}
@@ -157,7 +159,7 @@ export default function AdSets() {
                   <div className="mb-5">
                     <div className="flex justify-between text-xs mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
                       <span>Budget Utilisation</span>
-                      <span>₹{selectedAdSet.spend.toLocaleString("en-IN")} / ₹{selectedAdSet.budget.toLocaleString("en-IN")}</span>
+                      <span>{formatCurrency(selectedAdSet.spend, currency)} / {formatCurrency(selectedAdSet.budget, currency)}</span>
                     </div>
                     <div className="progress-bar">
                       <div
@@ -170,12 +172,12 @@ export default function AdSets() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
-                    { label: "Budget", value: selectedAdSet.budget > 0 ? `₹${selectedAdSet.budget.toLocaleString("en-IN")}` : "—" },
-                    { label: "Spend", value: `₹${selectedAdSet.spend.toLocaleString("en-IN")}` },
+                    { label: "Budget", value: selectedAdSet.budget > 0 ? formatCurrency(selectedAdSet.budget, currency) : "—" },
+                    { label: "Spend", value: formatCurrency(selectedAdSet.spend, currency) },
                     { label: "Leads", value: selectedAdSet.leads.toString() },
                     { label: "Purchases", value: selectedAdSet.purchases.toString() },
                     { label: "CTR", value: `${selectedAdSet.ctr.toFixed(2)}%` },
-                    { label: "CPC", value: `₹${selectedAdSet.cpc.toFixed(2)}` },
+                    { label: "CPC", value: formatCurrencyFixed(selectedAdSet.cpc, currency) },
                     { label: "Frequency", value: `${selectedAdSet.frequency}x` },
                     { label: "Clicks", value: selectedAdSet.clicks.toLocaleString("en-IN") },
                   ].map((m) => (

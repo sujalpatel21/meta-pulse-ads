@@ -5,9 +5,11 @@ import { Ad } from "@/data/mockData";
 import { fetchAds, getDateRangeFromPreset } from "@/services/metaService";
 import { ArrowLeft, AlertTriangle, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency, formatCurrencyFixed } from "@/lib/currency";
 
 export default function Ads() {
-  const { campaigns, dateRange, liveMode } = useDashboard();
+  const { campaigns, dateRange, liveMode, selectedAccount } = useDashboard();
+  const currency = selectedAccount?.currency || "INR";
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const adSetId = searchParams.get("adset");
@@ -204,13 +206,13 @@ export default function Ads() {
 
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
                   {[
-                    { label: "Spend", value: `₹${selectedAd.spend.toLocaleString("en-IN")}` },
-                    { label: "Impressions", value: selectedAd.impressions.toLocaleString("en-IN") },
-                    { label: "Clicks", value: selectedAd.clicks.toLocaleString("en-IN") },
+                    { label: "Spend", value: formatCurrency(selectedAd.spend, currency) },
+                    { label: "Impressions", value: selectedAd.impressions.toLocaleString() },
+                    { label: "Clicks", value: selectedAd.clicks.toLocaleString() },
                     { label: "Leads", value: selectedAd.leads.toString() },
                     { label: "Purchases", value: selectedAd.purchases.toString() },
                     { label: "CTR", value: `${selectedAd.ctr.toFixed(2)}%` },
-                    { label: "CPC", value: `₹${selectedAd.cpc.toFixed(2)}` },
+                    { label: "CPC", value: formatCurrencyFixed(selectedAd.cpc, currency) },
                     { label: "ROAS", value: `${selectedAd.roas.toFixed(1)}x` },
                   ].map((m) => (
                     <div key={m.label} className="p-3 rounded-lg" style={{ background: "hsl(var(--muted))" }}>
@@ -246,10 +248,10 @@ export default function Ads() {
                               <span className="text-xs font-medium truncate max-w-[140px]" style={{ color: "hsl(var(--foreground))" }}>{ad.name}</span>
                             </div>
                           </td>
-                          <td className="font-mono text-xs">₹{ad.spend.toLocaleString("en-IN")}</td>
+                          <td className="font-mono text-xs">{formatCurrency(ad.spend, currency)}</td>
                           <td className="font-mono text-xs" style={{ color: "hsl(var(--metric-positive))" }}>{ad.leads}</td>
                           <td className="font-mono text-xs">{ad.ctr.toFixed(2)}%</td>
-                          <td className="font-mono text-xs">₹{ad.cpc.toFixed(2)}</td>
+                          <td className="font-mono text-xs">{formatCurrencyFixed(ad.cpc, currency)}</td>
                           <td className="font-mono text-xs">{ad.roas.toFixed(1)}x</td>
                           <td>
                             <span className="text-xs font-mono font-bold" style={{
