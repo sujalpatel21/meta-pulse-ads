@@ -5,9 +5,11 @@ import { Campaign } from "@/data/mockData";
 import { SpendLeadsChart } from "@/components/dashboard/Charts";
 import { TrendingUp, TrendingDown, ArrowRight, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCurrency, formatCurrencyFixed, formatCurrencyShort } from "@/lib/currency";
 
 export default function Campaigns() {
   const { selectedAccount, campaigns, campaignsLoading } = useDashboard();
+  const currency = selectedAccount?.currency || "INR";
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const campaignId = searchParams.get("id");
@@ -77,7 +79,7 @@ export default function Campaigns() {
                 {c.name}
               </div>
               <div className="text-xs mt-1 flex items-center gap-2" style={{ color: "hsl(var(--muted-foreground))" }}>
-                <span>₹{(c.spend / 1000).toFixed(0)}K</span>
+                <span>{formatCurrencyShort(c.spend, currency)}</span>
                 <span className={cn("px-1.5 py-0.5 rounded-full text-xs", c.status === "Active" ? "status-active" : "status-paused")}>
                   {c.status}
                 </span>
@@ -117,7 +119,7 @@ export default function Campaigns() {
               <div className="mb-4">
                 <div className="flex justify-between text-xs mb-1.5" style={{ color: "hsl(var(--muted-foreground))" }}>
                   <span>Budget Used</span>
-                  <span>₹{selectedCampaign.spend.toLocaleString("en-IN")} / ₹{selectedCampaign.budget.toLocaleString("en-IN")}</span>
+                  <span>{formatCurrency(selectedCampaign.spend, currency)} / {formatCurrency(selectedCampaign.budget, currency)}</span>
                 </div>
                 <div className="progress-bar">
                   <div
@@ -134,14 +136,14 @@ export default function Campaigns() {
             {/* KPIs */}
             <div className="grid grid-cols-4 gap-3">
               {[
-                { label: "Spend", value: `₹${selectedCampaign.spend.toLocaleString("en-IN")}` },
+                { label: "Spend", value: formatCurrency(selectedCampaign.spend, currency) },
                 { label: "Leads", value: selectedCampaign.leads.toString() },
                 { label: "CTR", value: `${selectedCampaign.ctr.toFixed(2)}%` },
                 { label: "ROAS", value: `${selectedCampaign.roas.toFixed(1)}x` },
-                { label: "CPC", value: `₹${selectedCampaign.cpc.toFixed(2)}` },
-                { label: "CPL", value: cpl > 0 ? `₹${cpl.toFixed(0)}` : "—" },
-                { label: "Impressions", value: selectedCampaign.impressions.toLocaleString("en-IN") },
-                { label: "Clicks", value: selectedCampaign.clicks.toLocaleString("en-IN") },
+                { label: "CPC", value: formatCurrencyFixed(selectedCampaign.cpc, currency) },
+                { label: "CPL", value: cpl > 0 ? formatCurrencyFixed(cpl, currency, 0) : "—" },
+                { label: "Impressions", value: selectedCampaign.impressions.toLocaleString() },
+                { label: "Clicks", value: selectedCampaign.clicks.toLocaleString() },
               ].map((m) => (
                 <div key={m.label} className="p-3 rounded-lg" style={{ background: "hsl(var(--muted))" }}>
                   <div className="text-xs mb-1" style={{ color: "hsl(var(--muted-foreground))" }}>{m.label}</div>
@@ -192,7 +194,7 @@ export default function Campaigns() {
                     </div>
                     <div className="flex items-center gap-4 text-xs font-mono">
                       <div className="text-right">
-                        <div style={{ color: "hsl(var(--foreground))" }}>₹{as.spend.toLocaleString("en-IN")}</div>
+                        <div style={{ color: "hsl(var(--foreground))" }}>{formatCurrency(as.spend, currency)}</div>
                         <div style={{ color: "hsl(var(--muted-foreground))" }}>Spend</div>
                       </div>
                       <div className="text-right">

@@ -11,9 +11,10 @@ export default function Overview() {
   const accountName = selectedAccount?.accountName || "Loading...";
 
   const kpis = computeKPIs(campaigns);
+  const currency = selectedAccount?.currency || "INR";
   const kpiData = buildKPIData(
     kpis.spend, kpis.impressions, kpis.clicks,
-    kpis.leads, kpis.purchases, kpis.ctr, kpis.cpc, kpis.roas
+    kpis.leads, kpis.purchases, kpis.ctr, kpis.cpc, kpis.roas, currency
   );
   const dailyMetrics = aggregateDailyMetrics(campaigns);
 

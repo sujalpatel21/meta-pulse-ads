@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useDashboard } from "@/components/layout/Layout";
 import { computeKPIs, aggregateDailyMetrics } from "@/data/mockData";
+import { formatCurrency } from "@/lib/currency";
 import { generateReportAnalysis, METRIC_OPTIONS, MetricKey } from "@/lib/reportEngine";
 import ReportGenerator from "@/components/reports/ReportGenerator";
 import ReportKPICards from "@/components/reports/ReportKPICards";
@@ -16,6 +17,7 @@ import { FileText, Download, Mail, Eye, Brain, AlertTriangle, Zap } from "lucide
 export default function Reports() {
   const { selectedAccount, campaigns, dateRange } = useDashboard();
   const activeCampaigns = campaigns.length > 0 ? campaigns : (selectedAccount?.campaigns || []);
+  const currency = selectedAccount?.currency || "INR";
   const kpis = computeKPIs(activeCampaigns);
   const dailyMetrics = aggregateDailyMetrics(activeCampaigns);
 
@@ -106,7 +108,7 @@ export default function Reports() {
             <div className="text-[10px] text-muted-foreground mt-1">Underperformers</div>
           </div>
           <div className="p-3 rounded-lg bg-card">
-            <div className="text-lg font-bold font-mono text-metric-warning">₹{analysis.totalLeakage.toLocaleString("en-IN")}</div>
+            <div className="text-lg font-bold font-mono text-metric-warning">{formatCurrency(analysis.totalLeakage, currency)}</div>
             <div className="text-[10px] text-muted-foreground mt-1">Budget Leakage</div>
           </div>
         </div>

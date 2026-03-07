@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { ChevronUp, ChevronDown, ArrowUpRight } from "lucide-react";
 import { Campaign } from "@/data/mockData";
 import { cn } from "@/lib/utils";
+import { useDashboard } from "@/components/layout/Layout";
+import { formatCurrency, formatCurrencyFixed } from "@/lib/currency";
 
 interface CampaignTableProps {
   campaigns: Campaign[];
@@ -12,6 +14,8 @@ type SortKey = "name" | "spend" | "leads" | "ctr" | "cpc" | "roas";
 
 export default function CampaignTable({ campaigns }: CampaignTableProps) {
   const navigate = useNavigate();
+  const { selectedAccount } = useDashboard();
+  const currency = selectedAccount?.currency || "INR";
   const [sortKey, setSortKey] = useState<SortKey>("spend");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -82,7 +86,7 @@ export default function CampaignTable({ campaigns }: CampaignTableProps) {
               </td>
               <td>
                 <span className="font-mono font-semibold" style={{ color: "hsl(var(--foreground))" }}>
-                  ₹{c.spend.toLocaleString("en-IN")}
+                  {formatCurrency(c.spend, currency)}
                 </span>
               </td>
               <td>
@@ -106,7 +110,7 @@ export default function CampaignTable({ campaigns }: CampaignTableProps) {
               </td>
               <td>
                 <span className="font-mono" style={{ color: "hsl(var(--foreground))" }}>
-                  ₹{c.cpc.toFixed(2)}
+                  {formatCurrencyFixed(c.cpc, currency)}
                 </span>
               </td>
               <td>
