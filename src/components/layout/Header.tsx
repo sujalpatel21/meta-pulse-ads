@@ -12,6 +12,10 @@ const dateRangeOptions = [
   { value: "thisMonth", label: "This Month" },
   { value: "last30", label: "Last 30 Days" },
   { value: "lastMonth", label: "Last Month" },
+  { value: "last90", label: "Last 90 Days" },
+  { value: "last6months", label: "Last 6 Months" },
+  { value: "thisYear", label: "This Year" },
+  { value: "lastYear", label: "Last Year" },
 ];
 
 const compareModeOptions = [

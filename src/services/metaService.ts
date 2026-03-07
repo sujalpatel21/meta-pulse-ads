@@ -89,6 +89,25 @@ export function getDateRangeFromPreset(preset: string): DateRange {
       const last = new Date(today.getFullYear(), today.getMonth(), 0);
       return { from: fmt(first), to: fmt(last) };
     }
+    case "last90": {
+      const d = new Date(today);
+      d.setDate(d.getDate() - 89);
+      return { from: fmt(d), to: fmt(today) };
+    }
+    case "last6months": {
+      const d = new Date(today);
+      d.setMonth(d.getMonth() - 6);
+      return { from: fmt(d), to: fmt(today) };
+    }
+    case "lastYear": {
+      const d = new Date(today);
+      d.setFullYear(d.getFullYear() - 1);
+      return { from: fmt(d), to: fmt(today) };
+    }
+    case "thisYear": {
+      const first = new Date(today.getFullYear(), 0, 1);
+      return { from: fmt(first), to: fmt(today) };
+    }
     default:
       return { from: fmt(new Date(today.getTime() - 6 * 86400000)), to: fmt(today) };
   }
@@ -376,6 +395,8 @@ export async function fetchABTests(
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
+
+export { formatCurrency, formatCurrencyShort, formatCurrencyFixed, getCurrencySymbol } from "@/lib/currency";
 
 export function formatINR(amount: number): string {
   if (amount >= 100000) return `₹${(amount / 100000).toFixed(1)}L`;
