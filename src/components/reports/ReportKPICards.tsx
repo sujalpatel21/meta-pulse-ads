@@ -1,5 +1,7 @@
 import { Campaign } from "@/data/mockData";
 import { TrendingUp, TrendingDown, DollarSign, Users, MousePointerClick, Eye } from "lucide-react";
+import { useDashboard } from "@/components/layout/Layout";
+import { formatCurrency, formatCurrencyFixed, getCurrencySymbol } from "@/lib/currency";
 
 interface KPIs {
   spend: number;
@@ -19,11 +21,13 @@ interface Props {
 }
 
 export default function ReportKPICards({ kpis, campaigns }: Props) {
+  const { selectedAccount } = useDashboard();
+  const currency = selectedAccount?.currency || "INR";
   const cards = [
-    { label: "Total Spend", value: `₹${kpis.spend.toLocaleString("en-IN")}`, icon: DollarSign, color: "var(--brand)" },
-    { label: "Total Leads", value: kpis.leads.toLocaleString("en-IN"), icon: Users, color: "hsl(var(--metric-positive))" },
+    { label: "Total Spend", value: formatCurrency(kpis.spend, currency), icon: DollarSign, color: "var(--brand)" },
+    { label: "Total Leads", value: kpis.leads.toLocaleString(), icon: Users, color: "hsl(var(--metric-positive))" },
     { label: "Avg CTR", value: `${kpis.ctr.toFixed(2)}%`, icon: MousePointerClick, color: "hsl(var(--chart-3))" },
-    { label: "Avg CPL", value: kpis.cpl > 0 ? `₹${kpis.cpl.toFixed(0)}` : "—", icon: TrendingDown, color: "hsl(var(--metric-warning))" },
+    { label: "Avg CPL", value: kpis.cpl > 0 ? formatCurrencyFixed(kpis.cpl, currency, 0) : "—", icon: TrendingDown, color: "hsl(var(--metric-warning))" },
     { label: "ROAS", value: `${kpis.roas.toFixed(1)}x`, icon: TrendingUp, color: kpis.roas >= 2 ? "hsl(var(--metric-positive))" : "hsl(var(--metric-negative))" },
     { label: "Impressions", value: `${(kpis.impressions / 1000).toFixed(0)}K`, icon: Eye, color: "hsl(var(--chart-4))" },
   ];
