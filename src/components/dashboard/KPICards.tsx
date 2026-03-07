@@ -1,5 +1,6 @@
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { formatINR, formatNumber } from "@/services/metaService";
+import { formatNumber } from "@/services/metaService";
+import { formatCurrency, formatCurrencyFixed } from "@/lib/currency";
 
 export interface KPIData {
   label: string;
@@ -99,7 +100,8 @@ export function buildKPIData(
   purchases: number,
   ctr: number,
   cpc: number,
-  roas: number
+  roas: number,
+  currency: string = "INR"
 ): KPIData[] {
   const cpl = leads > 0 ? spend / leads : 0;
   const cpPurchase = purchases > 0 ? spend / purchases : 0;
@@ -108,7 +110,7 @@ export function buildKPIData(
     {
       label: "Total Spend",
       value: spend,
-      formatted: `₹${spend.toLocaleString("en-IN")}`,
+      formatted: formatCurrency(spend, currency),
       icon: "💰",
     },
     {
@@ -132,19 +134,19 @@ export function buildKPIData(
     {
       label: "CPC",
       value: cpc,
-      formatted: `₹${cpc.toFixed(2)}`,
+      formatted: formatCurrencyFixed(cpc, currency),
       icon: "💸",
     },
     {
       label: "Leads",
       value: leads,
-      formatted: leads.toLocaleString("en-IN"),
+      formatted: leads.toLocaleString(),
       icon: "🎯",
     },
     {
       label: "Purchases",
       value: purchases,
-      formatted: purchases.toLocaleString("en-IN"),
+      formatted: purchases.toLocaleString(),
       icon: "🛒",
     },
     {
