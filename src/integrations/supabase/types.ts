@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      budget_goals: {
+        Row: {
+          account_id: string
+          campaign_id: string | null
+          campaign_name: string | null
+          created_at: string | null
+          id: string
+          monthly_budget: number | null
+          target_cpl: number | null
+          target_roas: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id: string
+          campaign_id?: string | null
+          campaign_name?: string | null
+          created_at?: string | null
+          id?: string
+          monthly_budget?: number | null
+          target_cpl?: number | null
+          target_roas?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          campaign_id?: string | null
+          campaign_name?: string | null
+          created_at?: string | null
+          id?: string
+          monthly_budget?: number | null
+          target_cpl?: number | null
+          target_roas?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       email_logs: {
         Row: {
           error_message: string | null
