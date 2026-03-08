@@ -120,7 +120,7 @@ export default function Reports() {
       <ReportCampaignTable performance={analysis.campaignPerformance} selectedMetrics={selectedMetrics} />
 
       {/* Email Modal */}
-      <EmailReportCard open={showEmailModal} onOpenChange={setShowEmailModal} />
+      <EmailReportCard open={showEmailModal} onOpenChange={setShowEmailModal} reportDateRange={reportDateRange} reportLevels={reportLevels} selectedMetrics={selectedMetrics} />
 
       {/* Report Preview Modal */}
       {showPreview && (
