@@ -1,23 +1,24 @@
 import { useState, useEffect } from "react";
 import { useDashboard } from "@/components/layout/Layout";
-import { fetchABTests } from "@/services/metaService";
+import { fetchABTests, getDateRangeFromPreset } from "@/services/metaService";
 import { ABTest } from "@/data/mockData";
 import ABTestList from "@/components/ab-testing/ABTestList";
 import { FlaskConical, TrendingUp, Trophy, Clock } from "lucide-react";
 
 export default function ABTesting() {
-    const { selectedAccount, campaignsLoading, apiError } = useDashboard();
+    const { selectedAccount, campaignsLoading, apiError, dateRange } = useDashboard();
     const [tests, setTests] = useState<ABTest[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (!selectedAccount) return;
         setLoading(true);
-        fetchABTests(selectedAccount.accountId)
+        const dr = getDateRangeFromPreset(dateRange);
+        fetchABTests(selectedAccount.accountId, dr)
             .then(setTests)
             .catch(() => setTests([]))
             .finally(() => setLoading(false));
-    }, [selectedAccount?.accountId]);
+    }, [selectedAccount?.accountId, dateRange]);
 
     const runningCount = tests.filter((t) => t.status === "Running").length;
     const completedCount = tests.filter((t) => t.status === "Completed").length;
