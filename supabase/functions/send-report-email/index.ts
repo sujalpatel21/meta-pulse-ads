@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,10 +22,14 @@ serve(async (req) => {
       );
     }
 
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    if (!resendApiKey) {
+    const smtpEmail = Deno.env.get("SMTP_EMAIL");
+    const smtpPassword = Deno.env.get("SMTP_PASSWORD");
+    const smtpHost = Deno.env.get("SMTP_HOST") || "smtp.gmail.com";
+    const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
+
+    if (!smtpEmail || !smtpPassword) {
       return new Response(
-        JSON.stringify({ error: "RESEND_API_KEY not configured" }),
+        JSON.stringify({ error: "SMTP credentials not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -33,7 +38,7 @@ serve(async (req) => {
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 24px; border-radius: 12px; margin-bottom: 20px;">
+        <div style="background: linear-gradient(135deg, #3b82f6, #6366f1); padding: 24px; border-radius: 12px; margin-bottom: 20px;">
           <h1 style="color: white; margin: 0; font-size: 22px;">📊 MetaPulse Performance Report</h1>
           <p style="color: rgba(255,255,255,0.8); margin: 8px 0 0; font-size: 14px;">AI-Powered Meta Ads Intelligence</p>
         </div>
@@ -46,31 +51,29 @@ serve(async (req) => {
       </div>
     `;
 
-    // Use Resend HTTP API (SMTP is blocked on edge functions)
-    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "MetaPulse Analytics <onboarding@resend.dev>";
-
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
+    const client = new SMTPClient({
+      connection: {
+        hostname: smtpHost,
+        port: smtpPort,
+        tls: true,
+        auth: {
+          username: smtpEmail,
+          password: smtpPassword,
+        },
       },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: [recipientEmail],
-        subject,
-        text: emailBody,
-        html: htmlContent,
-      }),
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Resend error (${res.status}): ${errText}`);
-    }
+    await client.send({
+      from: smtpEmail,
+      to: recipientEmail,
+      subject: subject,
+      content: emailBody,
+      html: htmlContent,
+    });
 
-    const result = await res.json();
-    console.log(`Email sent via Resend to ${recipientEmail}`, result);
+    await client.close();
+
+    console.log(`Email sent via Gmail SMTP to ${recipientEmail}`);
 
     return new Response(
       JSON.stringify({ success: true, message: "Report sent successfully!" }),
