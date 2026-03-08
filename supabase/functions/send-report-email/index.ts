@@ -8,117 +8,152 @@ const corsHeaders = {
 };
 
 function buildReportHtml(data: any): string {
-  const { accountName, date, kpis, campaigns, insights, totalCampaigns, activeCampaigns, currencySymbol } = data;
+  const { accountName, date, kpis, campaigns, insights, totalCampaigns, activeCampaigns } = data;
 
-  const campaignRows = (campaigns || []).map((c: any) => `
-    <tr>
-      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;color:#333;max-width:200px;word-break:break-word;">${c.name}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;text-align:center;color:#333;">${c.spend}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;text-align:center;color:#333;">${c.leads}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;text-align:center;color:#333;">${c.cpl}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;text-align:center;color:#333;">${c.ctr}</td>
-      <td style="padding:8px 10px;border-bottom:1px solid #eee;font-size:13px;text-align:center;color:#333;">${c.roas}</td>
+  const campaignRows = (campaigns || []).map((c: any, i: number) => `
+    <tr style="background:${i % 2 === 0 ? '#0f172a' : '#131d36'};">
+      <td style="padding:12px 14px;font-size:13px;color:#e2e8f0;border-bottom:1px solid #1e293b;max-width:220px;">
+        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
+      </td>
+      <td style="padding:12px 10px;font-size:13px;text-align:center;color:#60a5fa;font-weight:600;border-bottom:1px solid #1e293b;font-family:'Courier New',monospace;">${c.spend}</td>
+      <td style="padding:12px 10px;font-size:13px;text-align:center;color:#34d399;font-weight:600;border-bottom:1px solid #1e293b;font-family:'Courier New',monospace;">${c.leads}</td>
+      <td style="padding:12px 10px;font-size:13px;text-align:center;color:#fbbf24;font-weight:600;border-bottom:1px solid #1e293b;font-family:'Courier New',monospace;">${c.cpl}</td>
+      <td style="padding:12px 10px;font-size:13px;text-align:center;color:#e2e8f0;border-bottom:1px solid #1e293b;font-family:'Courier New',monospace;">${c.ctr}</td>
+      <td style="padding:12px 10px;font-size:13px;text-align:center;color:#a78bfa;font-weight:600;border-bottom:1px solid #1e293b;font-family:'Courier New',monospace;">${c.roas}</td>
     </tr>
   `).join("");
 
-  const insightItems = (insights || []).map((i: string) => `
-    <li style="padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#444;line-height:1.5;">${i}</li>
+  const insightItems = (insights || []).map((insight: string) => `
+    <tr>
+      <td style="padding:10px 14px;border-bottom:1px solid #1e293b;font-size:13px;color:#cbd5e1;line-height:1.6;">
+        ${insight}
+      </td>
+    </tr>
   `).join("");
 
   return `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>MetaPulse Report</title>
+</head>
 <body style="margin:0;padding:0;background-color:#ffffff;font-family:Arial,Helvetica,sans-serif;">
-<div style="max-width:640px;margin:0 auto;padding:20px;">
 
-  <!-- Header -->
-  <div style="background:linear-gradient(135deg,#3b82f6,#6366f1);padding:28px 24px;border-radius:12px;margin-bottom:24px;">
-    <h1 style="color:#fff;margin:0;font-size:22px;">📊 MetaPulse Performance Report</h1>
-    <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">${accountName}</p>
-    <p style="color:rgba(255,255,255,0.65);margin:4px 0 0;font-size:12px;">${date} · ${totalCampaigns} campaigns (${activeCampaigns} active)</p>
+<!-- Dark wrapper for email clients that support it -->
+<div style="max-width:680px;margin:0 auto;background:#0a0f1e;border-radius:16px;overflow:hidden;">
+
+  <!-- ═══════════ HEADER ═══════════ -->
+  <div style="background:linear-gradient(135deg,#1e3a8a 0%,#3b82f6 50%,#6366f1 100%);padding:32px 28px;position:relative;">
+    <table width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td>
+        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:6px;">PERFORMANCE REPORT</div>
+        <div style="font-size:24px;font-weight:800;color:#ffffff;letter-spacing:-0.5px;">📊 MetaPulse Analytics</div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.85);margin-top:8px;">${accountName}</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.55);margin-top:4px;">${date}</div>
+      </td>
+      <td style="text-align:right;vertical-align:top;">
+        <div style="display:inline-block;background:rgba(255,255,255,0.15);border-radius:20px;padding:6px 14px;">
+          <span style="font-size:11px;color:rgba(255,255,255,0.9);">● ${activeCampaigns} Active</span>
+          <span style="font-size:11px;color:rgba(255,255,255,0.5);margin-left:8px;">${totalCampaigns} Total</span>
+        </div>
+      </td>
+    </tr></table>
   </div>
 
-  <!-- KPI Grid -->
-  <div style="margin-bottom:24px;">
-    <h2 style="font-size:16px;color:#333;margin:0 0 12px;">Key Metrics</h2>
-    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+  <!-- ═══════════ KPI CARDS ═══════════ -->
+  <div style="padding:24px 20px 8px;">
+    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:14px;padding-left:4px;">KEY METRICS</div>
+    
+    <!-- Row 1: Primary KPIs -->
+    <table width="100%" cellpadding="0" cellspacing="8" style="border-collapse:separate;">
       <tr>
-        <td style="padding:12px;text-align:center;background:#f0f7ff;border-radius:8px 0 0 0;">
-          <div style="font-size:20px;font-weight:bold;color:#3b82f6;">${kpis.spend}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px;">Total Spend</div>
+        <td width="25%" style="background:linear-gradient(135deg,#0f2167,#1e3a8a);border-radius:12px;padding:18px 14px;text-align:center;border:1px solid #1e3a8a;">
+          <div style="font-size:22px;font-weight:800;color:#60a5fa;font-family:'Courier New',monospace;letter-spacing:-0.5px;">${kpis.spend}</div>
+          <div style="font-size:10px;color:#64748b;margin-top:6px;text-transform:uppercase;letter-spacing:1px;">Spend</div>
         </td>
-        <td style="padding:12px;text-align:center;background:#f0fdf4;">
-          <div style="font-size:20px;font-weight:bold;color:#22c55e;">${kpis.leads}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px;">Leads</div>
+        <td width="25%" style="background:linear-gradient(135deg,#052e16,#14532d);border-radius:12px;padding:18px 14px;text-align:center;border:1px solid #14532d;">
+          <div style="font-size:22px;font-weight:800;color:#34d399;font-family:'Courier New',monospace;letter-spacing:-0.5px;">${kpis.leads}</div>
+          <div style="font-size:10px;color:#64748b;margin-top:6px;text-transform:uppercase;letter-spacing:1px;">Leads</div>
         </td>
-        <td style="padding:12px;text-align:center;background:#fffbeb;">
-          <div style="font-size:20px;font-weight:bold;color:#f59e0b;">${kpis.cpl}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px;">CPL</div>
+        <td width="25%" style="background:linear-gradient(135deg,#422006,#713f12);border-radius:12px;padding:18px 14px;text-align:center;border:1px solid #713f12;">
+          <div style="font-size:22px;font-weight:800;color:#fbbf24;font-family:'Courier New',monospace;letter-spacing:-0.5px;">${kpis.cpl}</div>
+          <div style="font-size:10px;color:#64748b;margin-top:6px;text-transform:uppercase;letter-spacing:1px;">CPL</div>
         </td>
-        <td style="padding:12px;text-align:center;background:#fef2f2;border-radius:0 8px 0 0;">
-          <div style="font-size:20px;font-weight:bold;color:#ef4444;">${kpis.ctr}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px;">CTR</div>
+        <td width="25%" style="background:linear-gradient(135deg,#2e1065,#4c1d95);border-radius:12px;padding:18px 14px;text-align:center;border:1px solid #4c1d95;">
+          <div style="font-size:22px;font-weight:800;color:#a78bfa;font-family:'Courier New',monospace;letter-spacing:-0.5px;">${kpis.roas}</div>
+          <div style="font-size:10px;color:#64748b;margin-top:6px;text-transform:uppercase;letter-spacing:1px;">ROAS</div>
         </td>
       </tr>
+    </table>
+
+    <!-- Row 2: Secondary KPIs -->
+    <table width="100%" cellpadding="0" cellspacing="8" style="border-collapse:separate;margin-top:0;">
       <tr>
-        <td style="padding:12px;text-align:center;background:#f8f9fa;border-radius:0 0 0 8px;">
-          <div style="font-size:18px;font-weight:bold;color:#555;">${kpis.impressions}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px;">Impressions</div>
+        <td width="25%" style="background:#111827;border-radius:10px;padding:14px 10px;text-align:center;border:1px solid #1e293b;">
+          <div style="font-size:16px;font-weight:700;color:#e2e8f0;font-family:'Courier New',monospace;">${kpis.impressions}</div>
+          <div style="font-size:9px;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:1px;">Impressions</div>
         </td>
-        <td style="padding:12px;text-align:center;background:#f8f9fa;">
-          <div style="font-size:18px;font-weight:bold;color:#555;">${kpis.clicks}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px;">Clicks</div>
+        <td width="25%" style="background:#111827;border-radius:10px;padding:14px 10px;text-align:center;border:1px solid #1e293b;">
+          <div style="font-size:16px;font-weight:700;color:#e2e8f0;font-family:'Courier New',monospace;">${kpis.clicks}</div>
+          <div style="font-size:9px;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:1px;">Clicks</div>
         </td>
-        <td style="padding:12px;text-align:center;background:#f8f9fa;">
-          <div style="font-size:18px;font-weight:bold;color:#555;">${kpis.cpc}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px;">CPC</div>
+        <td width="25%" style="background:#111827;border-radius:10px;padding:14px 10px;text-align:center;border:1px solid #1e293b;">
+          <div style="font-size:16px;font-weight:700;color:#38bdf8;font-family:'Courier New',monospace;">${kpis.ctr}</div>
+          <div style="font-size:9px;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:1px;">CTR</div>
         </td>
-        <td style="padding:12px;text-align:center;background:#f8f9fa;border-radius:0 0 8px 0;">
-          <div style="font-size:18px;font-weight:bold;color:#555;">${kpis.roas}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px;">ROAS</div>
+        <td width="25%" style="background:#111827;border-radius:10px;padding:14px 10px;text-align:center;border:1px solid #1e293b;">
+          <div style="font-size:16px;font-weight:700;color:#e2e8f0;font-family:'Courier New',monospace;">${kpis.cpc}</div>
+          <div style="font-size:9px;color:#64748b;margin-top:4px;text-transform:uppercase;letter-spacing:1px;">CPC</div>
         </td>
       </tr>
     </table>
   </div>
 
-  <!-- Campaign Table -->
+  <!-- ═══════════ CAMPAIGN TABLE ═══════════ -->
   ${campaigns && campaigns.length > 0 ? `
-  <div style="margin-bottom:24px;">
-    <h2 style="font-size:16px;color:#333;margin:0 0 12px;">Campaign Breakdown</h2>
-    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #eee;border-radius:8px;overflow:hidden;">
-      <thead>
-        <tr style="background:#f8f9fa;">
-          <th style="padding:10px;font-size:11px;text-align:left;color:#888;text-transform:uppercase;letter-spacing:0.5px;">Campaign</th>
-          <th style="padding:10px;font-size:11px;text-align:center;color:#888;text-transform:uppercase;">Spend</th>
-          <th style="padding:10px;font-size:11px;text-align:center;color:#888;text-transform:uppercase;">Leads</th>
-          <th style="padding:10px;font-size:11px;text-align:center;color:#888;text-transform:uppercase;">CPL</th>
-          <th style="padding:10px;font-size:11px;text-align:center;color:#888;text-transform:uppercase;">CTR</th>
-          <th style="padding:10px;font-size:11px;text-align:center;color:#888;text-transform:uppercase;">ROAS</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${campaignRows}
-      </tbody>
-    </table>
-  </div>
-  ` : ""}
-
-  <!-- AI Insights -->
-  ${insights && insights.length > 0 ? `
-  <div style="margin-bottom:24px;">
-    <h2 style="font-size:16px;color:#333;margin:0 0 12px;">🤖 AI Insights</h2>
-    <div style="background:#f8f9fa;border-radius:8px;padding:16px;">
-      <ul style="list-style:none;margin:0;padding:0;">
-        ${insightItems}
-      </ul>
+  <div style="padding:20px 20px 8px;">
+    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:14px;padding-left:4px;">CAMPAIGN BREAKDOWN</div>
+    <div style="border-radius:12px;overflow:hidden;border:1px solid #1e293b;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <thead>
+          <tr style="background:#0f172a;">
+            <th style="padding:12px 14px;font-size:10px;text-align:left;color:#475569;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #1e3a8a;">Campaign</th>
+            <th style="padding:12px 10px;font-size:10px;text-align:center;color:#475569;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #1e3a8a;">Spend</th>
+            <th style="padding:12px 10px;font-size:10px;text-align:center;color:#475569;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #1e3a8a;">Leads</th>
+            <th style="padding:12px 10px;font-size:10px;text-align:center;color:#475569;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #1e3a8a;">CPL</th>
+            <th style="padding:12px 10px;font-size:10px;text-align:center;color:#475569;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #1e3a8a;">CTR</th>
+            <th style="padding:12px 10px;font-size:10px;text-align:center;color:#475569;text-transform:uppercase;letter-spacing:1px;border-bottom:2px solid #1e3a8a;">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${campaignRows}
+        </tbody>
+      </table>
     </div>
   </div>
   ` : ""}
 
-  <!-- Footer -->
-  <div style="text-align:center;padding:20px 0 10px;border-top:1px solid #eee;">
-    <p style="font-size:11px;color:#aaa;margin:0;">Generated by MetaPulse Analytics · ${date}</p>
+  <!-- ═══════════ AI INSIGHTS ═══════════ -->
+  ${insights && insights.length > 0 ? `
+  <div style="padding:20px 20px 8px;">
+    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#64748b;margin-bottom:14px;padding-left:4px;">🤖 AI INSIGHTS</div>
+    <div style="border-radius:12px;overflow:hidden;border:1px solid #1e293b;background:linear-gradient(180deg,#0f172a,#111827);">
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        ${insightItems}
+      </table>
+    </div>
+  </div>
+  ` : ""}
+
+  <!-- ═══════════ FOOTER ═══════════ -->
+  <div style="padding:24px 20px;text-align:center;border-top:1px solid #1e293b;margin-top:16px;">
+    <div style="display:inline-block;background:linear-gradient(135deg,#3b82f6,#6366f1);border-radius:20px;padding:6px 16px;margin-bottom:12px;">
+      <span style="font-size:11px;font-weight:700;color:#ffffff;letter-spacing:0.5px;">MetaPulse Analytics</span>
+    </div>
+    <div style="font-size:11px;color:#475569;margin-top:8px;">${date}</div>
+    <div style="font-size:10px;color:#334155;margin-top:4px;">AI-Powered Meta Ads Intelligence Platform</div>
   </div>
 
 </div>
@@ -151,7 +186,6 @@ serve(async (req) => {
       );
     }
 
-    // Build HTML: use reportData if provided, else fall back to messageBody
     let htmlContent: string;
     let textContent: string;
 
