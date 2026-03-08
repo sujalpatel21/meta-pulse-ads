@@ -156,6 +156,120 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case "get_ab_tests": {
+        if (!accountId) throw new Error("accountId required");
+        const abAcctId = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
+
+        // Step 1: Fetch all campaigns
+        const campaignFields = "name,status";
+        const allCampaigns = await metaFetchAll(
+          `${META_BASE}/${abAcctId}/campaigns?fields=${encodeURIComponent(campaignFields)}&limit=100`
+        );
+
+        const abTests: any[] = [];
+
+        // Step 2: For each campaign, fetch ad sets
+        for (const camp of allCampaigns.slice(0, 20)) { // limit to 20 campaigns
+          const adsetInsightsTR = dateRange?.from && dateRange?.to
+            ? `.time_range(${JSON.stringify({ since: dateRange.from, until: dateRange.to })})`
+            : "";
+          const adsetFields = `name,status,ads${adsetInsightsTR ? "" : ""}{name,status,creative{thumbnail_url},insights${adsetInsightsTR}{spend,impressions,clicks,reach,actions,purchase_roas,ctr,cpc}}`;
+
+          let adSets: any[];
+          try {
+            adSets = await metaFetchAll(
+              `${META_BASE}/${camp.id}/adsets?fields=${encodeURIComponent(`name,status`)}&limit=50`
+            );
+          } catch { continue; }
+
+          // Step 3: For each ad set with 2+ ads, create an A/B test
+          for (const adset of adSets) {
+            let ads: any[];
+            try {
+              const adFields = `name,status,creative{thumbnail_url},insights${adsetInsightsTR}{spend,impressions,clicks,reach,actions,purchase_roas,ctr,cpc}`;
+              ads = await metaFetchAll(
+                `${META_BASE}/${adset.id}/ads?fields=${encodeURIComponent(adFields)}&limit=20`
+              );
+            } catch { continue; }
+
+            if (ads.length < 2) continue;
+
+            const labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const variants = ads.slice(0, 6).map((ad: any, idx: number) => {
+              const ins = ad.insights?.data?.[0] || {};
+              const spend = parseFloat(ins.spend || "0");
+              const impressions = parseInt(ins.impressions || "0");
+              const clicks = parseInt(ins.clicks || "0");
+              const leads = extractAction(ins.actions, "lead");
+              const purchases = extractAction(ins.actions, "purchase") + extractAction(ins.actions, "offsite_conversion.fb_pixel_purchase");
+              const ctr = parseFloat(ins.ctr || "0");
+              const cpc = parseFloat(ins.cpc || "0");
+              const roas = ins.purchase_roas?.[0]?.value ? parseFloat(ins.purchase_roas[0].value) : 0;
+              const conversionRate = impressions > 0 ? (leads / impressions) * 100 : 0;
+
+              return {
+                variantId: ad.id,
+                variantLabel: labels[idx],
+                adName: ad.name || `Ad ${idx + 1}`,
+                thumbnail: ad.creative?.thumbnail_url || "https://placehold.co/120x90/1a1a2e/666?text=Ad",
+                spend, impressions, clicks, leads, purchases,
+                ctr, cpc, roas, conversionRate,
+                dailyMetrics: [],
+              };
+            });
+
+            // Determine winner by CTR (highest CTR wins)
+            const activeVariants = variants.filter((v: any) => v.impressions > 0);
+            let winnerId: string | undefined;
+            let confidence = 0;
+            let testStatus: "Running" | "Completed" | "Draft" = "Running";
+
+            if (activeVariants.length >= 2) {
+              const sorted = [...activeVariants].sort((a: any, b: any) => b.ctr - a.ctr);
+              const best = sorted[0];
+              const secondBest = sorted[1];
+
+              // Simple confidence: based on CTR difference & sample size
+              if (best.impressions > 100 && secondBest.impressions > 100) {
+                const diff = best.ctr - secondBest.ctr;
+                const avgCtr = (best.ctr + secondBest.ctr) / 2;
+                const relDiff = avgCtr > 0 ? (diff / avgCtr) * 100 : 0;
+                const sampleBonus = Math.min(30, Math.log10(best.impressions + secondBest.impressions) * 10);
+                confidence = Math.min(99, Math.round(Math.abs(relDiff) * 3 + sampleBonus));
+
+                if (confidence >= 90) {
+                  winnerId = best.variantId;
+                  testStatus = "Completed";
+                }
+              }
+            } else if (activeVariants.length === 0) {
+              testStatus = "Draft";
+            }
+
+            // Determine campaign status
+            const campStatus = camp.status === "ACTIVE" ? "Running" : testStatus;
+
+            abTests.push({
+              testId: `ab_${adset.id}`,
+              testName: `${adset.name}`,
+              campaignName: camp.name,
+              campaignId: camp.id,
+              accountId: abAcctId,
+              status: camp.status === "ACTIVE" ? "Running" : (confidence >= 90 ? "Completed" : "Draft"),
+              startDate: dateRange?.from || new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10),
+              endDate: camp.status !== "ACTIVE" ? (dateRange?.to || new Date().toISOString().slice(0, 10)) : undefined,
+              variants,
+              winnerId,
+              confidence,
+              metric: "CTR",
+            });
+          }
+        }
+
+        result = abTests;
+        break;
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
