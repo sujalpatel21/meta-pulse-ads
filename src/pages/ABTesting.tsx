@@ -126,6 +126,9 @@ export default function ABTesting() {
                 </div>
             )}
 
+            {/* Winner Creatives */}
+            <WinnerCreatives tests={tests} loading={loading || campaignsLoading} />
+
             {/* Test List */}
             <ABTestList tests={tests} loading={loading || campaignsLoading} />
         </div>
