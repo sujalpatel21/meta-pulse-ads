@@ -441,32 +441,6 @@ export default function AIIntelligence() {
             </div>
           )}
 
-          {/* ── Campaign Intelligence Cards ── */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-                <Activity size={14} style={{ color: "hsl(var(--brand))" }} />
-                Campaign Intelligence
-              </h2>
-              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: "hsl(142 71% 45%)" }} /> Scale</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: "hsl(0 84% 60%)" }} /> Kill</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: "hsl(38 92% 50%)" }} /> Monitor</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: "hsl(25 95% 53%)" }} /> Fatigue</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {intel.campaignIntels
-                .sort((a, b) => {
-                  const priority = { kill: 0, leakage: 1, fatigue: 2, monitor: 3, scale: 4 };
-                  return (priority[a.primaryAction] ?? 3) - (priority[b.primaryAction] ?? 3);
-                })
-                .map((ci, i) => (
-                  <CampaignIntelCard key={ci.campaign.campaignId} intel={ci} />
-                ))}
-            </div>
-          </div>
-
           {/* ── AI Deep Analysis Section ── */}
           <div className="chart-card p-5">
             <div className="flex items-center justify-between mb-4">
