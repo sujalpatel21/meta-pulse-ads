@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useDashboard } from "@/components/layout/Layout";
-import { computeKPIs, aggregateDailyMetrics } from "@/data/mockData";
+import { computeKPIs, aggregateDailyMetrics, Campaign } from "@/data/mockData";
 import { formatCurrency } from "@/lib/currency";
 import { generateReportAnalysis, METRIC_OPTIONS, MetricKey } from "@/lib/reportEngine";
+import { fetchCampaigns, getDateRangeFromPreset } from "@/services/metaService";
 import ReportGenerator from "@/components/reports/ReportGenerator";
 import ReportKPICards from "@/components/reports/ReportKPICards";
 import ReportCharts from "@/components/reports/ReportCharts";
@@ -12,14 +13,11 @@ import ReportRecommendations from "@/components/reports/ReportRecommendations";
 import ReportCampaignTable from "@/components/reports/ReportCampaignTable";
 import ReportPreview from "@/components/reports/ReportPreview";
 import EmailReportCard from "@/components/reports/EmailReportCard";
-import { FileText, Download, Mail, Eye, Brain, AlertTriangle, Zap } from "lucide-react";
+import { FileText, Download, Mail, Eye, Brain, Loader2 } from "lucide-react";
 
 export default function Reports() {
-  const { selectedAccount, campaigns, dateRange } = useDashboard();
-  const activeCampaigns = campaigns.length > 0 ? campaigns : (selectedAccount?.campaigns || []);
+  const { selectedAccount, campaigns: globalCampaigns, dateRange: globalDateRange } = useDashboard();
   const currency = selectedAccount?.currency || "INR";
-  const kpis = computeKPIs(activeCampaigns);
-  const dailyMetrics = aggregateDailyMetrics(activeCampaigns);
 
   const [reportDateRange, setReportDateRange] = useState<string>("last30");
   const [reportLevels, setReportLevels] = useState<string[]>(["campaign"]);
@@ -28,11 +26,35 @@ export default function Reports() {
   const [showPreview, setShowPreview] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
 
+  // Report-specific campaigns (fetched based on report date range)
+  const [reportCampaigns, setReportCampaigns] = useState<Campaign[]>([]);
+  const [reportLoading, setReportLoading] = useState(false);
+
+  // Use report-specific campaigns if generated, otherwise use global
+  const activeCampaigns = reportGenerated ? reportCampaigns : (globalCampaigns.length > 0 ? globalCampaigns : (selectedAccount?.campaigns || []));
+
+  const kpis = computeKPIs(activeCampaigns);
+  const dailyMetrics = aggregateDailyMetrics(activeCampaigns);
   const analysis = useMemo(() => generateReportAnalysis(activeCampaigns), [activeCampaigns]);
 
-  const handleGenerateReport = () => {
-    setReportGenerated(true);
-  };
+  const handleGenerateReport = useCallback(async () => {
+    if (!selectedAccount) return;
+
+    setReportLoading(true);
+    try {
+      const dr = getDateRangeFromPreset(reportDateRange);
+      const data = await fetchCampaigns(selectedAccount.accountId, dr);
+      setReportCampaigns(data);
+      setReportGenerated(true);
+    } catch (e: any) {
+      console.error("Report fetch error:", e);
+      // Fall back to global campaigns
+      setReportCampaigns(globalCampaigns);
+      setReportGenerated(true);
+    } finally {
+      setReportLoading(false);
+    }
+  }, [selectedAccount, reportDateRange, globalCampaigns]);
 
   const handleExportCSV = () => {
     const headers = ["Campaign", ...selectedMetrics];
@@ -52,7 +74,7 @@ export default function Reports() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `metapulse-report-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `metapulse-report-${reportDateRange}-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -63,7 +85,14 @@ export default function Reports() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-foreground">📊 AI Performance Reports</h1>
-          <p className="text-sm mt-0.5 text-muted-foreground">AI-powered performance analysis & actionable intelligence</p>
+          <p className="text-sm mt-0.5 text-muted-foreground">
+            {selectedAccount?.accountName || "Loading..."} · AI-powered performance analysis
+            {reportGenerated && (
+              <span className="ml-2 text-primary font-medium">
+                · Report active
+              </span>
+            )}
+          </p>
         </div>
         <div className="flex gap-2">
           <button onClick={handleExportCSV} className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors">
@@ -80,7 +109,10 @@ export default function Reports() {
 
       <ReportGenerator
         dateRange={reportDateRange}
-        setDateRange={setReportDateRange}
+        setDateRange={(v) => {
+          setReportDateRange(v);
+          setReportGenerated(false); // Reset when date range changes
+        }}
         levels={reportLevels}
         setLevels={setReportLevels}
         selectedMetrics={selectedMetrics}
@@ -89,38 +121,58 @@ export default function Reports() {
         reportGenerated={reportGenerated}
       />
 
-      <ReportKPICards kpis={kpis} campaigns={activeCampaigns} />
-      <ReportCharts dailyMetrics={dailyMetrics} campaigns={activeCampaigns} />
-
-      <div className="ai-insight-box p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Brain size={18} className="text-primary" />
-          <h2 className="text-sm font-semibold text-foreground">AI Performance Analysis Engine</h2>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-mono">AUTO</span>
-        </div>
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="p-3 rounded-lg bg-card">
-            <div className="text-lg font-bold font-mono text-metric-positive">{analysis.scalingOpportunities}</div>
-            <div className="text-[10px] text-muted-foreground mt-1">Scale Opportunities</div>
-          </div>
-          <div className="p-3 rounded-lg bg-card">
-            <div className="text-lg font-bold font-mono text-metric-negative">{analysis.underperformers}</div>
-            <div className="text-[10px] text-muted-foreground mt-1">Underperformers</div>
-          </div>
-          <div className="p-3 rounded-lg bg-card">
-            <div className="text-lg font-bold font-mono text-metric-warning">{formatCurrency(analysis.totalLeakage, currency)}</div>
-            <div className="text-[10px] text-muted-foreground mt-1">Budget Leakage</div>
+      {/* Loading state */}
+      {reportLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center space-y-3">
+            <Loader2 size={24} className="animate-spin mx-auto text-primary" />
+            <p className="text-sm text-muted-foreground">Fetching report data from Meta API...</p>
           </div>
         </div>
-      </div>
+      )}
 
-      <ReportBottlenecks bottlenecks={analysis.bottlenecks} />
-      <ReportLeakage leakage={analysis.leakage} totalLeakage={analysis.totalLeakage} />
-      <ReportRecommendations recommendations={analysis.recommendations} />
-      <ReportCampaignTable performance={analysis.campaignPerformance} selectedMetrics={selectedMetrics} />
+      {!reportLoading && (
+        <>
+          <ReportKPICards kpis={kpis} campaigns={activeCampaigns} />
+          <ReportCharts dailyMetrics={dailyMetrics} campaigns={activeCampaigns} />
+
+          <div className="ai-insight-box p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Brain size={18} className="text-primary" />
+              <h2 className="text-sm font-semibold text-foreground">AI Performance Analysis Engine</h2>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary font-mono">AUTO</span>
+            </div>
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="p-3 rounded-lg bg-card">
+                <div className="text-lg font-bold font-mono text-metric-positive">{analysis.scalingOpportunities}</div>
+                <div className="text-[10px] text-muted-foreground mt-1">Scale Opportunities</div>
+              </div>
+              <div className="p-3 rounded-lg bg-card">
+                <div className="text-lg font-bold font-mono text-metric-negative">{analysis.underperformers}</div>
+                <div className="text-[10px] text-muted-foreground mt-1">Underperformers</div>
+              </div>
+              <div className="p-3 rounded-lg bg-card">
+                <div className="text-lg font-bold font-mono text-metric-warning">{formatCurrency(analysis.totalLeakage, currency)}</div>
+                <div className="text-[10px] text-muted-foreground mt-1">Budget Leakage</div>
+              </div>
+            </div>
+          </div>
+
+          <ReportBottlenecks bottlenecks={analysis.bottlenecks} />
+          <ReportLeakage leakage={analysis.leakage} totalLeakage={analysis.totalLeakage} />
+          <ReportRecommendations recommendations={analysis.recommendations} />
+          <ReportCampaignTable performance={analysis.campaignPerformance} selectedMetrics={selectedMetrics} />
+        </>
+      )}
 
       {/* Email Modal */}
-      <EmailReportCard open={showEmailModal} onOpenChange={setShowEmailModal} reportDateRange={reportDateRange} reportLevels={reportLevels} selectedMetrics={selectedMetrics} />
+      <EmailReportCard
+        open={showEmailModal}
+        onOpenChange={setShowEmailModal}
+        reportDateRange={reportDateRange}
+        reportLevels={reportLevels}
+        selectedMetrics={selectedMetrics}
+      />
 
       {/* Report Preview Modal */}
       {showPreview && (
@@ -128,7 +180,7 @@ export default function Reports() {
           kpis={kpis}
           campaigns={activeCampaigns}
           analysis={analysis}
-          dateRange={dateRange}
+          dateRange={reportDateRange}
           accountName={selectedAccount?.accountName || ""}
           onClose={() => setShowPreview(false)}
         />
