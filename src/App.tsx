@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import Overview from "./pages/Overview";
+import DailyDigest from "./pages/DailyDigest";
+import Funnel from "./pages/Funnel";
 import Campaigns from "./pages/Campaigns";
 import AdSets from "./pages/AdSets";
 import Ads from "./pages/Ads";
@@ -27,6 +29,8 @@ const App = () => (
         <Layout>
           <Routes>
             <Route path="/" element={<Overview />} />
+            <Route path="/daily-digest" element={<DailyDigest />} />
+            <Route path="/funnel" element={<Funnel />} />
             <Route path="/ai-intelligence" element={<AIIntelligence />} />
             <Route path="/campaigns" element={<Campaigns />} />
             <Route path="/adsets" element={<AdSets />} />
