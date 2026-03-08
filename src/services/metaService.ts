@@ -386,11 +386,14 @@ export async function fetchABTests(
 
   try {
     const data = await callMetaApi("get_ab_tests", { accountId, dateRange });
-    return data;
+    if (Array.isArray(data) && data.length > 0) {
+      return data;
+    }
+    // No ad sets with 2+ ads found — return empty
+    return [];
   } catch (e) {
-    console.warn("Falling back to mock A/B tests:", e);
-    // In live mode, real account IDs won't match mock data — return all mock tests as demo
-    return getAllABTests();
+    console.warn("A/B test fetch error:", e);
+    return [];
   }
 }
 
