@@ -13,10 +13,18 @@ interface Props {
 }
 
 const DATE_RANGES = [
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
   { value: "last7", label: "Last 7 Days" },
   { value: "last14", label: "Last 14 Days" },
   { value: "last30", label: "Last 30 Days" },
-  { value: "custom", label: "Custom Range" },
+  { value: "thisWeek", label: "This Week" },
+  { value: "thisMonth", label: "This Month" },
+  { value: "lastMonth", label: "Last Month" },
+  { value: "last90", label: "Last 90 Days" },
+  { value: "last6months", label: "Last 6 Months" },
+  { value: "thisYear", label: "This Year" },
+  { value: "lastYear", label: "Last Year" },
 ];
 
 const LEVELS = [
@@ -49,7 +57,7 @@ export default function ReportGenerator({ dateRange, setDateRange, levels, setLe
           <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <Calendar size={12} /> Date Range
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 max-h-[200px] overflow-y-auto pr-1">
             {DATE_RANGES.map(d => (
               <button
                 key={d.value}
@@ -98,7 +106,7 @@ export default function ReportGenerator({ dateRange, setDateRange, levels, setLe
           <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
             <BarChart3 size={12} /> Metrics
           </div>
-          <div className="flex flex-wrap gap-1.5 max-h-[140px] overflow-y-auto pr-1">
+          <div className="flex flex-wrap gap-1.5 max-h-[200px] overflow-y-auto pr-1">
             {METRIC_OPTIONS.map(m => (
               <button
                 key={m.key}
