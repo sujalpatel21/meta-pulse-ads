@@ -3,7 +3,6 @@ import { useDashboard } from "@/components/layout/Layout";
 import { fetchABTests, getDateRangeFromPreset } from "@/services/metaService";
 import { ABTest } from "@/data/mockData";
 import ABTestList from "@/components/ab-testing/ABTestList";
-import WinnerCreatives from "@/components/ab-testing/WinnerCreatives";
 import { FlaskConical, TrendingUp, Trophy, Clock } from "lucide-react";
 
 export default function ABTesting() {
@@ -125,9 +124,6 @@ export default function ABTesting() {
                     </div>
                 </div>
             )}
-
-            {/* Winner Creatives */}
-            <WinnerCreatives tests={tests} loading={loading || campaignsLoading} />
 
             {/* Test List */}
             <ABTestList tests={tests} loading={loading || campaignsLoading} />
