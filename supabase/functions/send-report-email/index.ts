@@ -54,8 +54,8 @@ serve(async (req) => {
     const client = new SMTPClient({
       connection: {
         hostname: smtpHost,
-        port: smtpPort,
-        tls: true,
+        port: 587,
+        tls: false,
         auth: {
           username: smtpEmail,
           password: smtpPassword,
