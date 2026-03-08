@@ -212,21 +212,14 @@ export default function Budget() {
             <p className="text-sm text-muted-foreground">No campaigns found for this account.</p>
           )}
           {campaigns.map((camp) => {
-            const goal = allGoals.find(g => g.campaign_id === camp.campaignId);
-            if (!goal) {
-              return (
-                <div key={camp.campaignId} className="p-4 rounded-xl border border-border bg-muted/50">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold text-foreground">{camp.name}</span>
-                    <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted">No goals set</span>
-                  </div>
-                </div>
-              );
-            }
+            const savedGoal = allGoals.find(g => g.campaign_id === camp.campaignId);
+            const goal = savedGoal || { target_cpl: targetCPL, target_roas: targetROAS, monthly_budget: monthlyBudget };
+            const hasGoal = !!savedGoal;
 
             const campCPL = camp.leads > 0 ? camp.spend / camp.leads : 0;
             const campROAS = camp.roas || 0;
-            const campSpendPct = goal.monthly_budget > 0 ? (camp.spend / goal.monthly_budget) * 100 : 0;
+            const campSpend = camp.spend || 0;
+            const campSpendPct = goal.monthly_budget > 0 ? (campSpend / goal.monthly_budget) * 100 : 0;
 
             const cplOk = campCPL <= goal.target_cpl || camp.leads === 0;
             const roasOk = campROAS >= goal.target_roas || campROAS === 0;
@@ -242,25 +235,35 @@ export default function Budget() {
               <div key={camp.campaignId} className={cn("p-4 rounded-xl border", allOk ? "alert-healthy" : "alert-critical")}>
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-semibold">{camp.name}</span>
-                  <span className="text-lg">{allOk ? "✅" : "❌"}</span>
+                  <div className="flex items-center gap-2">
+                    {!hasGoal && <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted">Default goals</span>}
+                    <span className="text-lg">{allOk ? "✅" : "❌"}</span>
+                  </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3 mb-3">
+                <div className="grid grid-cols-4 gap-3 mb-3">
                   <div>
                     <div className="text-xs opacity-70">CPL</div>
                     <div className={cn("text-lg font-bold font-mono", !cplOk && "text-destructive")}>
-                      {camp.leads > 0 ? `₹${campCPL.toFixed(0)}` : "—"}
+                      ₹{campCPL.toFixed(0)}
                     </div>
                     <div className="text-xs opacity-60">Target: ₹{goal.target_cpl}</div>
                   </div>
                   <div>
                     <div className="text-xs opacity-70">ROAS</div>
                     <div className={cn("text-lg font-bold font-mono", !roasOk && "text-destructive")}>
-                      {campROAS > 0 ? `${campROAS.toFixed(1)}x` : "—"}
+                      {campROAS.toFixed(1)}x
                     </div>
                     <div className="text-xs opacity-60">Target: {goal.target_roas}x</div>
                   </div>
                   <div>
-                    <div className="text-xs opacity-70">Budget</div>
+                    <div className="text-xs opacity-70">Spend</div>
+                    <div className="text-lg font-bold font-mono">
+                      ₹{campSpend.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                    </div>
+                    <div className="text-xs opacity-60">Budget: ₹{goal.monthly_budget.toLocaleString("en-IN")}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs opacity-70">Budget Used</div>
                     <div className={cn("text-lg font-bold font-mono", !budgetOk && "text-destructive")}>
                       {campSpendPct.toFixed(0)}%
                     </div>
