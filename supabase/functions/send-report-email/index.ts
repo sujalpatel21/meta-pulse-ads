@@ -259,7 +259,7 @@ serve(async (req) => {
       from: smtpEmail,
       to: recipientEmail,
       subject,
-      content: textContent,
+      content: "auto",
       html: htmlContent,
     });
 
