@@ -123,20 +123,20 @@ function checkDataSufficiency(variants: TestVariant[]): { enough: boolean; messa
 function calculateConfidence(variants: TestVariant[]): { confidence: number; winnerId: string | null; primaryMetric: string } {
   if (variants.length < 2) return { confidence: 0, winnerId: null, primaryMetric: "CTR" };
 
-  // Score each variant across multiple metrics
+  // Score each variant across multiple metrics (excluding ROAS and purchases)
   const scores = variants.map((v) => {
     let score = 0;
     const maxCTR = Math.max(...variants.map((x) => x.ctr));
     const minCPC = Math.min(...variants.filter((x) => x.cpc > 0).map((x) => x.cpc));
     const maxConvRate = Math.max(...variants.map((x) => x.conversionRate));
-    const maxROAS = Math.max(...variants.map((x) => x.roas));
+    const minCPL = Math.min(...variants.filter((x) => x.cpl > 0).map((x) => x.cpl));
     const minCostPerResult = Math.min(...variants.filter((x) => x.costPerResult > 0).map((x) => x.costPerResult));
 
-    if (maxCTR > 0 && v.ctr === maxCTR) score += 20;
-    if (minCPC > 0 && v.cpc > 0 && v.cpc === minCPC) score += 20;
+    if (maxCTR > 0 && v.ctr === maxCTR) score += 25;
+    if (minCPC > 0 && v.cpc > 0 && v.cpc === minCPC) score += 25;
     if (maxConvRate > 0 && v.conversionRate === maxConvRate) score += 25;
-    if (maxROAS > 0 && v.roas === maxROAS) score += 20;
-    if (minCostPerResult > 0 && v.costPerResult > 0 && v.costPerResult === minCostPerResult) score += 15;
+    if (minCPL > 0 && v.cpl > 0 && v.cpl === minCPL) score += 15;
+    if (minCostPerResult > 0 && v.costPerResult > 0 && v.costPerResult === minCostPerResult) score += 10;
 
     return { id: v.id, score };
   });
