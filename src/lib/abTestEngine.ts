@@ -123,20 +123,20 @@ function checkDataSufficiency(variants: TestVariant[]): { enough: boolean; messa
 function calculateConfidence(variants: TestVariant[]): { confidence: number; winnerId: string | null; primaryMetric: string } {
   if (variants.length < 2) return { confidence: 0, winnerId: null, primaryMetric: "CTR" };
 
-  // Score each variant across multiple metrics
+  // Score each variant across multiple metrics (excluding ROAS and purchases)
   const scores = variants.map((v) => {
     let score = 0;
     const maxCTR = Math.max(...variants.map((x) => x.ctr));
     const minCPC = Math.min(...variants.filter((x) => x.cpc > 0).map((x) => x.cpc));
     const maxConvRate = Math.max(...variants.map((x) => x.conversionRate));
-    const maxROAS = Math.max(...variants.map((x) => x.roas));
+    const minCPL = Math.min(...variants.filter((x) => x.cpl > 0).map((x) => x.cpl));
     const minCostPerResult = Math.min(...variants.filter((x) => x.costPerResult > 0).map((x) => x.costPerResult));
 
-    if (maxCTR > 0 && v.ctr === maxCTR) score += 20;
-    if (minCPC > 0 && v.cpc > 0 && v.cpc === minCPC) score += 20;
+    if (maxCTR > 0 && v.ctr === maxCTR) score += 25;
+    if (minCPC > 0 && v.cpc > 0 && v.cpc === minCPC) score += 25;
     if (maxConvRate > 0 && v.conversionRate === maxConvRate) score += 25;
-    if (maxROAS > 0 && v.roas === maxROAS) score += 20;
-    if (minCostPerResult > 0 && v.costPerResult > 0 && v.costPerResult === minCostPerResult) score += 15;
+    if (minCPL > 0 && v.cpl > 0 && v.cpl === minCPL) score += 15;
+    if (minCostPerResult > 0 && v.costPerResult > 0 && v.costPerResult === minCostPerResult) score += 10;
 
     return { id: v.id, score };
   });
@@ -146,14 +146,14 @@ function calculateConfidence(variants: TestVariant[]): { confidence: number; win
   const second = scores[1];
   const gap = top.score - second.score;
 
-  // Determine primary metric based on what differs most
+  // Determine primary metric based on what differs most (no ROAS)
   let primaryMetric = "CTR";
   const winner = variants.find((v) => v.id === top.id)!;
   const loser = variants.find((v) => v.id === second.id)!;
 
-  if (winner.roas > 0 && loser.roas > 0) {
-    const roasDiff = Math.abs(winner.roas - loser.roas) / Math.max(winner.roas, loser.roas);
-    if (roasDiff > 0.15) primaryMetric = "ROAS";
+  if (winner.cpc > 0 && loser.cpc > 0) {
+    const cpcDiff = Math.abs(winner.cpc - loser.cpc) / Math.max(winner.cpc, loser.cpc);
+    if (cpcDiff > 0.2) primaryMetric = "CPC";
   }
   if (winner.leads > 0 && loser.leads > 0) {
     const cplDiff = Math.abs(winner.cpl - loser.cpl) / Math.max(winner.cpl, loser.cpl);
@@ -321,14 +321,14 @@ export function generateRecommendations(tests: AutoDetectedTest[]): Recommendati
         targetName: winner.name,
         targetId: winner.id,
         title: `Scale "${winner.name}"`,
-        reasoning: `This ${test.level === "campaign" ? "campaign" : test.level === "adset" ? "audience" : "creative"} outperforms others with ${winner.ctr.toFixed(2)}% CTR${winner.roas > 0 ? ` and ${winner.roas.toFixed(1)}x ROAS` : ""}. Confidence: ${test.confidence}%.`,
+        reasoning: `This ${test.level === "campaign" ? "campaign" : test.level === "adset" ? "audience" : "creative"} outperforms others with ${winner.ctr.toFixed(2)}% CTR and ${winner.cpc.toFixed(2)} CPC. Confidence: ${test.confidence}%.`,
         impact: winner.cpl > 0 ? `${savings}% lower CPL than average` : `${winner.ctr.toFixed(2)}% CTR (highest)`,
         priority: test.confidence >= 90 ? "high" : "medium",
         metrics: [
           { label: "CTR", value: `${winner.ctr.toFixed(2)}%` },
           { label: "CPC", value: `₹${winner.cpc.toFixed(2)}` },
           ...(winner.cpl > 0 ? [{ label: "CPL", value: `₹${winner.cpl.toFixed(0)}` }] : []),
-          ...(winner.roas > 0 ? [{ label: "ROAS", value: `${winner.roas.toFixed(1)}x` }] : []),
+          { label: "Conv Rate", value: `${winner.conversionRate.toFixed(2)}%` },
         ],
       });
     }

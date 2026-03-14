@@ -57,7 +57,6 @@ export default function TestComparisonTable({ test }: TestComparisonTableProps) 
     { key: "cpl", label: "CPL", format: "currency", higherIsBetter: false },
     { key: "conversionRate", label: "Conv Rate", format: "percent", higherIsBetter: true },
     { key: "costPerResult", label: "Cost/Result", format: "currency", higherIsBetter: false },
-    { key: "roas", label: "ROAS", format: "multiplier", higherIsBetter: true },
   ];
 
   const visibleMetrics = expanded ? metrics : metrics.slice(0, 6);
