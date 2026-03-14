@@ -1,12 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useDashboard } from "@/components/layout/Layout";
-import { FlaskConical, Layers, Image, Trophy, Clock, AlertTriangle, ChevronDown } from "lucide-react";
+import { FlaskConical, Layers, Image, Trophy, Clock, AlertTriangle, ChevronDown, Loader2 } from "lucide-react";
 import {
   detectCampaignTests,
   detectAdTests,
   generateRecommendations,
   AutoDetectedTest,
 } from "@/lib/abTestEngine";
+import { fetchAdSets, fetchAds, getDateRangeFromPreset } from "@/services/metaService";
+import { Campaign } from "@/data/mockData";
 import TestComparisonTable from "@/components/ab-testing/TestComparisonTable";
 import AIRecommendations from "@/components/ab-testing/AIRecommendations";
 
@@ -19,35 +21,72 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode; desc: string }[
 ];
 
 export default function ABTesting() {
-  const { campaigns, campaignsLoading, apiError } = useDashboard();
+  const { campaigns, campaignsLoading, apiError, dateRange } = useDashboard();
   const [activeTab, setActiveTab] = useState<TabKey>("all");
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>("all");
+  const [enrichedCampaigns, setEnrichedCampaigns] = useState<Campaign[]>([]);
+  const [loadingCreatives, setLoadingCreatives] = useState(false);
+
+  // Fetch ad sets + ads for creative testing
+  useEffect(() => {
+    if (campaigns.length === 0) return;
+
+    const targetCampaigns = selectedCampaignId === "all"
+      ? campaigns.filter(c => c.spend > 0).slice(0, 5) // top 5 spending campaigns
+      : campaigns.filter(c => c.campaignId === selectedCampaignId);
+
+    if (targetCampaigns.length === 0) {
+      setEnrichedCampaigns([]);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingCreatives(true);
+
+    const dr = getDateRangeFromPreset(dateRange);
+
+    Promise.all(
+      targetCampaigns.map(async (camp) => {
+        try {
+          const adSets = await fetchAdSets(camp.campaignId, dr);
+          // Fetch ads for each ad set
+          const enrichedAdSets = await Promise.all(
+            adSets.map(async (adSet) => {
+              try {
+                const ads = await fetchAds(adSet.adSetId, dr);
+                return { ...adSet, ads };
+              } catch {
+                return adSet;
+              }
+            })
+          );
+          return { ...camp, adSets: enrichedAdSets };
+        } catch {
+          return camp;
+        }
+      })
+    ).then((results) => {
+      if (!cancelled) {
+        setEnrichedCampaigns(results);
+        setLoadingCreatives(false);
+      }
+    });
+
+    return () => { cancelled = true; };
+  }, [campaigns, selectedCampaignId, dateRange]);
 
   const campaignTests = useMemo(() => detectCampaignTests(campaigns), [campaigns]);
-  const adTests = useMemo(() => detectAdTests(campaigns), [campaigns]);
+  const adTests = useMemo(() => detectAdTests(enrichedCampaigns), [enrichedCampaigns]);
 
   const allTests = useMemo(() => [...campaignTests, ...adTests], [campaignTests, adTests]);
   const recommendations = useMemo(() => generateRecommendations(allTests), [allTests]);
 
-  // Filter ad tests by selected campaign
-  const filteredAdTests = useMemo(() => {
-    if (selectedCampaignId === "all") return adTests;
-    return adTests.filter((t) => t.groupName.startsWith(
-      campaigns.find(c => c.campaignId === selectedCampaignId)?.name || ""
-    ));
-  }, [adTests, selectedCampaignId, campaigns]);
-
   const filteredTests = useMemo(() => {
-    if (activeTab === "all") {
-      if (selectedCampaignId !== "all") {
-        return [...campaignTests, ...filteredAdTests];
-      }
-      return allTests;
-    }
+    if (activeTab === "all") return allTests;
     if (activeTab === "campaign") return campaignTests;
-    if (activeTab === "ad") return filteredAdTests;
+    if (activeTab === "ad") return adTests;
     return allTests;
-  }, [activeTab, allTests, campaignTests, filteredAdTests, selectedCampaignId]);
+  }, [activeTab, allTests, campaignTests, adTests]);
 
   const stats = useMemo(() => ({
     total: allTests.length,
@@ -58,16 +97,11 @@ export default function ABTesting() {
     ad: adTests.length,
   }), [allTests, campaignTests, adTests]);
 
-  // Campaigns that have ad tests
-  const campaignsWithAds = useMemo(() => {
-    const ids = new Set<string>();
-    adTests.forEach(t => {
-      const campName = t.groupName.split(" › ")[0];
-      const camp = campaigns.find(c => c.name === campName);
-      if (camp) ids.add(camp.campaignId);
-    });
-    return campaigns.filter(c => ids.has(c.campaignId));
-  }, [adTests, campaigns]);
+  // Active campaigns for the dropdown
+  const activeCampaigns = useMemo(() =>
+    campaigns.filter(c => c.spend > 0),
+    [campaigns]
+  );
 
   const loading = campaignsLoading;
 
@@ -143,7 +177,7 @@ export default function ABTesting() {
         </div>
 
         {/* Campaign selector for creative tab */}
-        {(activeTab === "ad" || activeTab === "all") && campaignsWithAds.length > 0 && (
+        {(activeTab === "ad" || activeTab === "all") && activeCampaigns.length > 0 && (
           <div className="relative">
             <select
               value={selectedCampaignId}
@@ -155,14 +189,21 @@ export default function ABTesting() {
                 color: "hsl(var(--foreground))",
               }}
             >
-              <option value="all">All Campaigns</option>
-              {campaignsWithAds.map((c) => (
+              <option value="all">All Campaigns (Top 5)</option>
+              {activeCampaigns.map((c) => (
                 <option key={c.campaignId} value={c.campaignId}>
-                  {c.name.length > 40 ? c.name.substring(0, 37) + "..." : c.name}
+                  {c.name.length > 45 ? c.name.substring(0, 42) + "..." : c.name}
                 </option>
               ))}
             </select>
             <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "hsl(var(--muted-foreground))" }} />
+          </div>
+        )}
+
+        {loadingCreatives && (
+          <div className="flex items-center gap-1.5 text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
+            <Loader2 size={12} className="animate-spin" />
+            Loading creatives...
           </div>
         )}
       </div>
@@ -177,12 +218,14 @@ export default function ABTesting() {
       )}
 
       {/* Empty State */}
-      {!loading && filteredTests.length === 0 && (
+      {!loading && !loadingCreatives && filteredTests.length === 0 && (
         <div className="chart-card p-12 text-center">
           <FlaskConical size={40} className="mx-auto mb-3" style={{ color: "hsl(var(--muted-foreground))" }} />
           <h3 className="text-sm font-semibold mb-1" style={{ color: "hsl(var(--foreground))" }}>No tests detected</h3>
           <p className="text-xs" style={{ color: "hsl(var(--muted-foreground))" }}>
-            Tests are auto-detected when multiple campaigns share the same objective, or when ads exist within the same ad set.
+            {activeTab === "ad"
+              ? "No ad sets with 2+ ads found in the selected campaign. Select a different campaign or check your ad structure."
+              : "Tests are auto-detected when multiple campaigns share the same objective, or when ads exist within the same ad set."}
           </p>
         </div>
       )}
@@ -206,12 +249,12 @@ export default function ABTesting() {
             </>
           )}
 
-          {(activeTab === "all" || activeTab === "ad") && filteredAdTests.length > 0 && (
+          {(activeTab === "all" || activeTab === "ad") && adTests.length > 0 && (
             <>
               {activeTab === "all" && (
-                <SectionHeader icon={<Image size={15} />} title="Creative Tests" subtitle="Ads within the same ad set compared" count={filteredAdTests.length} />
+                <SectionHeader icon={<Image size={15} />} title="Creative Tests" subtitle="Ads within the same ad set compared" count={adTests.length} />
               )}
-              {filteredAdTests.map((test) => (
+              {adTests.map((test) => (
                 <TestComparisonTable key={test.testId} test={test} />
               ))}
             </>
