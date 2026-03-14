@@ -321,14 +321,14 @@ export function generateRecommendations(tests: AutoDetectedTest[]): Recommendati
         targetName: winner.name,
         targetId: winner.id,
         title: `Scale "${winner.name}"`,
-        reasoning: `This ${test.level === "campaign" ? "campaign" : test.level === "adset" ? "audience" : "creative"} outperforms others with ${winner.ctr.toFixed(2)}% CTR${winner.roas > 0 ? ` and ${winner.roas.toFixed(1)}x ROAS` : ""}. Confidence: ${test.confidence}%.`,
+        reasoning: `This ${test.level === "campaign" ? "campaign" : test.level === "adset" ? "audience" : "creative"} outperforms others with ${winner.ctr.toFixed(2)}% CTR and ${winner.cpc.toFixed(2)} CPC. Confidence: ${test.confidence}%.`,
         impact: winner.cpl > 0 ? `${savings}% lower CPL than average` : `${winner.ctr.toFixed(2)}% CTR (highest)`,
         priority: test.confidence >= 90 ? "high" : "medium",
         metrics: [
           { label: "CTR", value: `${winner.ctr.toFixed(2)}%` },
           { label: "CPC", value: `₹${winner.cpc.toFixed(2)}` },
           ...(winner.cpl > 0 ? [{ label: "CPL", value: `₹${winner.cpl.toFixed(0)}` }] : []),
-          ...(winner.roas > 0 ? [{ label: "ROAS", value: `${winner.roas.toFixed(1)}x` }] : []),
+          { label: "Conv Rate", value: `${winner.conversionRate.toFixed(2)}%` },
         ],
       });
     }
