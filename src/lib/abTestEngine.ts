@@ -146,14 +146,14 @@ function calculateConfidence(variants: TestVariant[]): { confidence: number; win
   const second = scores[1];
   const gap = top.score - second.score;
 
-  // Determine primary metric based on what differs most
+  // Determine primary metric based on what differs most (no ROAS)
   let primaryMetric = "CTR";
   const winner = variants.find((v) => v.id === top.id)!;
   const loser = variants.find((v) => v.id === second.id)!;
 
-  if (winner.roas > 0 && loser.roas > 0) {
-    const roasDiff = Math.abs(winner.roas - loser.roas) / Math.max(winner.roas, loser.roas);
-    if (roasDiff > 0.15) primaryMetric = "ROAS";
+  if (winner.cpc > 0 && loser.cpc > 0) {
+    const cpcDiff = Math.abs(winner.cpc - loser.cpc) / Math.max(winner.cpc, loser.cpc);
+    if (cpcDiff > 0.2) primaryMetric = "CPC";
   }
   if (winner.leads > 0 && loser.leads > 0) {
     const cplDiff = Math.abs(winner.cpl - loser.cpl) / Math.max(winner.cpl, loser.cpl);
