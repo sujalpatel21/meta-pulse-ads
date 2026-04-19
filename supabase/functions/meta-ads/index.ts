@@ -270,6 +270,98 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case "get_daily_report": {
+        if (!accountId) throw new Error("accountId required");
+        const acctId = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
+
+        // Yesterday & day-before-yesterday in YYYY-MM-DD
+        const fmt = (d: Date) => d.toISOString().split("T")[0];
+        const today = new Date();
+        const yest = new Date(today); yest.setDate(today.getDate() - 1);
+        const dby = new Date(today); dby.setDate(today.getDate() - 2);
+        const yStr = fmt(yest), dbyStr = fmt(dby);
+
+        const insightsFields = "spend,impressions,clicks,ctr,cpm,actions,cost_per_action_type";
+
+        // Account-level insights for both days in one call (time_increment=1)
+        const acctInsights = await metaFetchAll(
+          `${META_BASE}/${acctId}/insights?fields=${insightsFields}&time_increment=1&time_range=${encodeURIComponent(JSON.stringify({ since: dbyStr, until: yStr }))}&limit=10`
+        );
+
+        const dayMetric = (date: string) => {
+          const d = acctInsights.find((x: any) => x.date_start === date);
+          if (!d) return null;
+          const spend = parseFloat(d.spend || "0");
+          const impressions = parseInt(d.impressions || "0");
+          const clicks = parseInt(d.clicks || "0");
+          const leads = extractAction(d.actions, "lead");
+          const purchases = extractAction(d.actions, "purchase") + extractAction(d.actions, "offsite_conversion.fb_pixel_purchase");
+          const results = leads + purchases;
+          const cpl = leads > 0 ? spend / leads : 0;
+          const cpr = results > 0 ? spend / results : 0;
+          return {
+            date,
+            spend,
+            impressions,
+            clicks,
+            ctr: parseFloat(d.ctr || "0"),
+            cpm: parseFloat(d.cpm || "0"),
+            leads,
+            purchases,
+            results,
+            cpl,
+            cpr,
+          };
+        };
+
+        const yesterday = dayMetric(yStr);
+        const dayBefore = dayMetric(dbyStr);
+
+        // Total budgets across active campaigns (sum daily_budget; lifetime_budget treated as 0 for daily comparison)
+        const campData = await metaFetchAll(
+          `${META_BASE}/${acctId}/campaigns?fields=name,status,daily_budget,lifetime_budget,created_time&limit=200`
+        );
+        let totalDailyBudget = 0;
+        for (const c of campData) {
+          if (c.status === "ACTIVE" && c.daily_budget) {
+            totalDailyBudget += parseFloat(c.daily_budget) / 100;
+          }
+        }
+
+        // New launches (created on yesterday)
+        const isYesterday = (createdTime: string) => {
+          if (!createdTime) return false;
+          return createdTime.slice(0, 10) === yStr;
+        };
+
+        const newCampaigns = campData
+          .filter((c: any) => isYesterday(c.created_time))
+          .map((c: any) => ({ id: c.id, name: c.name }));
+
+        // Fetch ad sets and ads (just name + created_time) — paginated
+        const adSetData = await metaFetchAll(
+          `${META_BASE}/${acctId}/adsets?fields=name,created_time&limit=200`
+        );
+        const newAdSets = adSetData
+          .filter((a: any) => isYesterday(a.created_time))
+          .map((a: any) => ({ id: a.id, name: a.name }));
+
+        const adData = await metaFetchAll(
+          `${META_BASE}/${acctId}/ads?fields=name,created_time&limit=200`
+        );
+        const newAds = adData
+          .filter((a: any) => isYesterday(a.created_time))
+          .map((a: any) => ({ id: a.id, name: a.name }));
+
+        result = {
+          yesterday,
+          dayBefore,
+          totalDailyBudget,
+          newLaunches: { campaigns: newCampaigns, adSets: newAdSets, ads: newAds },
+        };
+        break;
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
