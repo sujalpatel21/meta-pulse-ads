@@ -5,7 +5,7 @@ import { formatCurrency, formatCurrencyFixed } from "@/lib/currency";
 import {
   Wallet, TrendingUp, Rocket, Activity, Loader2, RefreshCw,
   Eye, MousePointerClick, Target, ShoppingCart, Layers, MousePointer2, Megaphone,
-  CheckCircle2, AlertTriangle, AlertCircle,
+  CheckCircle2, AlertTriangle, AlertCircle, ArrowUp, ArrowDown, SlidersHorizontal,
 } from "lucide-react";
 
 type Status = "over" | "under" | "ontrack" | "unknown";
@@ -459,6 +459,101 @@ export default function DailyReport() {
                 value={y.results.toLocaleString()}
               />
             </div>
+          </div>
+
+          {/* === Card 5: Budget Changes (full width) === */}
+          <div className="lg:col-span-3 rounded-xl border border-border bg-card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <SlidersHorizontal size={16} className="text-primary" />
+                <h3 className="text-sm font-semibold text-foreground">Budget Changes</h3>
+              </div>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                  data.budgetChanges.length > 0
+                    ? "bg-primary/15 text-primary"
+                    : "bg-muted/40 text-muted-foreground"
+                }`}
+              >
+                {data.budgetChanges.length} {data.budgetChanges.length === 1 ? "change" : "changes"}
+              </span>
+            </div>
+
+            {data.budgetChanges.length === 0 ? (
+              <div className="flex items-center gap-3 py-4 px-4 rounded-lg bg-muted/20 border border-border/50">
+                <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  No budget changes were made yesterday.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-border/60">
+                <table className="w-full text-xs">
+                  <thead className="bg-muted/30">
+                    <tr className="text-left">
+                      <th className="px-3 py-2 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Object</th>
+                      <th className="px-3 py-2 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground">Change</th>
+                      <th className="px-3 py-2 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground text-right">Old</th>
+                      <th className="px-3 py-2 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground text-right">New</th>
+                      <th className="px-3 py-2 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground text-right">Delta</th>
+                      <th className="px-3 py-2 font-semibold text-[10px] uppercase tracking-wider text-muted-foreground text-right">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.budgetChanges.map((bc) => {
+                      const up = bc.delta > 0;
+                      const down = bc.delta < 0;
+                      const pct =
+                        bc.oldValue && bc.oldValue > 0
+                          ? (bc.delta / bc.oldValue) * 100
+                          : null;
+                      const time = new Date(bc.eventTime).toLocaleTimeString(undefined, {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+                      return (
+                        <tr
+                          key={bc.id}
+                          className="border-t border-border/40 hover:bg-muted/20 transition-colors"
+                        >
+                          <td className="px-3 py-2.5 text-foreground font-medium truncate max-w-[200px]" title={bc.objectName}>
+                            {bc.objectName}
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground capitalize">
+                            {bc.eventType?.replace(/_/g, " ").toLowerCase()}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">
+                            {bc.oldValue !== null ? formatCurrency(bc.oldValue, currency) : "—"}
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono text-foreground">
+                            {bc.newValue !== null ? formatCurrency(bc.newValue, currency) : "—"}
+                          </td>
+                          <td className="px-3 py-2.5 text-right">
+                            <span
+                              className={`inline-flex items-center gap-1 font-mono font-semibold ${
+                                up ? "text-emerald-400" : down ? "text-red-400" : "text-muted-foreground"
+                              }`}
+                            >
+                              {up ? <ArrowUp size={11} /> : down ? <ArrowDown size={11} /> : null}
+                              {bc.delta >= 0 ? "+" : "-"}
+                              {formatCurrency(Math.abs(bc.delta), currency)}
+                              {pct !== null && (
+                                <span className="text-[10px] opacity-70">
+                                  ({pct >= 0 ? "+" : ""}{pct.toFixed(1)}%)
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-mono text-muted-foreground">
+                            {time}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
