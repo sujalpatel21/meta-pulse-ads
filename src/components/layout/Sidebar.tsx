@@ -2,7 +2,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, TrendingUp, Layers, MousePointer2,
   Bell, Target, FileText, Settings, ChevronLeft,
-  Zap, BarChart3, Wifi, Brain, FlaskConical, Coffee, Filter,
+  Zap, BarChart3, Wifi, FlaskConical, Coffee,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDashboard } from "./Layout";
@@ -10,8 +10,6 @@ import { useDashboard } from "./Layout";
 const navItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
   { icon: Coffee, label: "Daily Digest", path: "/daily-digest" },
-  { icon: Filter, label: "Funnel", path: "/funnel" },
-  { icon: Brain, label: "AI Intelligence", path: "/ai-intelligence" },
   { icon: TrendingUp, label: "Campaigns", path: "/campaigns" },
   { icon: Layers, label: "Ad Sets", path: "/adsets" },
   { icon: MousePointer2, label: "Ads", path: "/ads" },
