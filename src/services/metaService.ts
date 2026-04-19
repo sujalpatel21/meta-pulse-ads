@@ -390,6 +390,17 @@ export interface DailyReportDayMetric {
   cpr: number;
 }
 
+export interface BudgetChange {
+  id: string;
+  objectName: string;
+  objectId: string;
+  eventType: string;
+  eventTime: string;
+  oldValue: number | null;
+  newValue: number | null;
+  delta: number;
+}
+
 export interface DailyReportData {
   yesterday: DailyReportDayMetric | null;
   dayBefore: DailyReportDayMetric | null;
@@ -399,6 +410,7 @@ export interface DailyReportData {
     adSets: { id: string; name: string }[];
     ads: { id: string; name: string }[];
   };
+  budgetChanges: BudgetChange[];
 }
 
 export async function fetchDailyReport(accountId: string): Promise<DailyReportData> {
