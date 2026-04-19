@@ -353,11 +353,56 @@ Deno.serve(async (req) => {
           .filter((a: any) => isYesterday(a.created_time))
           .map((a: any) => ({ id: a.id, name: a.name }));
 
+        // Budget changes: query account activities for budget update events on yesterday
+        const budgetChanges: any[] = [];
+        try {
+          const sinceTs = Math.floor(new Date(`${yStr}T00:00:00Z`).getTime() / 1000);
+          const untilTs = Math.floor(new Date(`${yStr}T23:59:59Z`).getTime() / 1000);
+          const activities = await metaFetchAll(
+            `${META_BASE}/${acctId}/activities?fields=event_type,event_time,object_name,object_id,extra_data,translated_event_type&since=${sinceTs}&until=${untilTs}&limit=200`
+          );
+          // Map campaign id -> currency divisor (Meta returns minor units in extra_data values)
+          for (const a of activities) {
+            const et = (a.event_type || "").toLowerCase();
+            const isBudgetChange =
+              et.includes("budget") &&
+              (et.includes("update") || et.includes("change") || et.includes("edit"));
+            if (!isBudgetChange) continue;
+            let oldVal: number | null = null;
+            let newVal: number | null = null;
+            try {
+              const extra = typeof a.extra_data === "string" ? JSON.parse(a.extra_data) : a.extra_data;
+              if (extra) {
+                const ov = extra.old_value ?? extra.old ?? extra.from;
+                const nv = extra.new_value ?? extra.new ?? extra.to;
+                if (ov !== undefined) oldVal = parseFloat(String(ov)) / 100;
+                if (nv !== undefined) newVal = parseFloat(String(nv)) / 100;
+              }
+            } catch { /* ignore parse */ }
+            if (oldVal === null && newVal === null) continue;
+            const delta = (newVal ?? 0) - (oldVal ?? 0);
+            if (delta === 0 && oldVal !== null && newVal !== null) continue;
+            budgetChanges.push({
+              id: `${a.object_id}-${a.event_time}`,
+              objectName: a.object_name || "Unknown",
+              objectId: a.object_id,
+              eventType: a.translated_event_type || a.event_type,
+              eventTime: a.event_time,
+              oldValue: oldVal,
+              newValue: newVal,
+              delta,
+            });
+          }
+        } catch (e) {
+          console.warn("Activities fetch failed:", e);
+        }
+
         result = {
           yesterday,
           dayBefore,
           totalDailyBudget,
           newLaunches: { campaigns: newCampaigns, adSets: newAdSets, ads: newAds },
+          budgetChanges,
         };
         break;
       }
