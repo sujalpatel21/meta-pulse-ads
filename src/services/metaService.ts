@@ -374,6 +374,37 @@ export async function generateAIInsights(campaigns: Campaign[]): Promise<string[
   return insights;
 }
 
+// ── Daily Report ──────────────────────────────────────────────────
+
+export interface DailyReportDayMetric {
+  date: string;
+  spend: number;
+  impressions: number;
+  clicks: number;
+  ctr: number;
+  cpm: number;
+  leads: number;
+  purchases: number;
+  results: number;
+  cpl: number;
+  cpr: number;
+}
+
+export interface DailyReportData {
+  yesterday: DailyReportDayMetric | null;
+  dayBefore: DailyReportDayMetric | null;
+  totalDailyBudget: number;
+  newLaunches: {
+    campaigns: { id: string; name: string }[];
+    adSets: { id: string; name: string }[];
+    ads: { id: string; name: string }[];
+  };
+}
+
+export async function fetchDailyReport(accountId: string): Promise<DailyReportData> {
+  return await callMetaApi("get_daily_report", { accountId });
+}
+
 // ── A/B Tests ─────────────────────────────────────────────────────
 
 export async function fetchABTests(
