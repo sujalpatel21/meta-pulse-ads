@@ -894,7 +894,7 @@ export const mockClients: Client[] = [
 
 // ── Utility: Aggregate account-level metrics ──────────────────────
 export function getAccountMetrics(campaigns: Campaign[]) {
-  return campaigns.reduce(
+  return (campaigns || []).reduce(
     (acc, c) => ({
       spend: acc.spend + c.spend,
       impressions: acc.impressions + c.impressions,
@@ -907,12 +907,13 @@ export function getAccountMetrics(campaigns: Campaign[]) {
 }
 
 export function computeKPIs(campaigns: Campaign[]) {
-  const totals = getAccountMetrics(campaigns);
+  const safe = campaigns || [];
+  const totals = getAccountMetrics(safe);
   const ctr = totals.clicks && totals.impressions ? (totals.clicks / totals.impressions) * 100 : 0;
   const cpc = totals.clicks ? totals.spend / totals.clicks : 0;
   const cpl = totals.leads ? totals.spend / totals.leads : 0;
   const roas = totals.purchases
-    ? campaigns.reduce((s, c) => s + c.roas * c.spend, 0) / totals.spend
+    ? safe.reduce((s, c) => s + (c.roas || 0) * (c.spend || 0), 0) / totals.spend
     : 0;
 
   return { ...totals, ctr, cpc, cpl, roas };
