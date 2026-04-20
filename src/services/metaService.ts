@@ -47,7 +47,11 @@ async function callMetaApi(action: string, params: Record<string, any> = {}): Pr
 
     try {
       const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), META_FUNCTION_TIMEOUT_MS);
+      let didTimeout = false;
+      const timeoutId = window.setTimeout(() => {
+        didTimeout = true;
+        controller.abort();
+      }, META_FUNCTION_TIMEOUT_MS);
 
       const response = await fetch(META_FUNCTION_URL, {
         method: "POST",
@@ -56,7 +60,14 @@ async function callMetaApi(action: string, params: Record<string, any> = {}): Pr
         headers: META_FUNCTION_HEADERS,
         body: JSON.stringify({ action, ...params }),
         signal: controller.signal,
-      }).finally(() => window.clearTimeout(timeoutId));
+      }).catch((err) => {
+        window.clearTimeout(timeoutId);
+        if (didTimeout) {
+          throw new Error(`Meta API request timed out after ${META_FUNCTION_TIMEOUT_MS}ms`);
+        }
+        throw err;
+      });
+      window.clearTimeout(timeoutId);
 
       const raw = await response.text();
       const parsed = raw ? JSON.parse(raw) : null;
@@ -168,6 +179,7 @@ export async function fetchAdAccounts(): Promise<any[]> {
   }
 
   const accounts = await callMetaApi("get_ad_accounts");
+  if (!Array.isArray(accounts)) return [];
   return accounts.map((a: any) => ({
     accountId: a.accountId,
     accountName: a.accountName,
@@ -192,7 +204,8 @@ export async function fetchCampaigns(
     return [];
   }
 
-  return await callMetaApi("get_campaigns", { accountId, dateRange });
+  const data = await callMetaApi("get_campaigns", { accountId, dateRange });
+  return Array.isArray(data) ? data : [];
 }
 
 // ── Ad Set Operations ─────────────────────────────────────────────
