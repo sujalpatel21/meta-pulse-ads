@@ -55,7 +55,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       })
       .catch((e) => {
         console.warn("Could not load live accounts:", e);
-        setApiError(e.message);
+        setApiError(e.message || "Unable to connect to the Meta API");
         setLiveMode(false);
       })
       .finally(() => setAccountsLoading(false));
@@ -77,7 +77,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       setCampaigns(data);
     } catch (e: any) {
       console.warn("Campaign load error:", e);
-      setApiError(e.message);
+      setApiError(e.message || "Unable to load live campaign data");
       setCampaigns([]);
     } finally {
       setCampaignsLoading(false);
