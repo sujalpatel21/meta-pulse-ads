@@ -46,7 +46,7 @@ export default function Overview() {
         <div className="p-3 rounded-lg text-sm" style={{
           background: "hsl(0 84% 50% / 0.1)", color: "hsl(0 84% 60%)", border: "1px solid hsl(0 84% 50% / 0.2)",
         }}>
-          ⚠️ API Error: {apiError} — Showing fallback data
+          ⚠️ Live API Error: {apiError}
         </div>
       )}
 

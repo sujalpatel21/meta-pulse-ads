@@ -86,7 +86,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
           liveMode ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
         )}>
           {liveMode ? <Wifi size={10} /> : <WifiOff size={10} />}
-          {liveMode ? "Live" : "Mock"}
+          {liveMode ? "Live" : "Connection issue"}
         </div>
 
         {/* Account selector with search */}

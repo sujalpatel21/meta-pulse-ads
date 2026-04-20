@@ -8,22 +8,31 @@ const corsHeaders = {
 
 const META_API_VERSION = "v19.0";
 const META_BASE = `https://graph.facebook.com/${META_API_VERSION}`;
+const META_TIMEOUT_MS = 8000;
+
+function jsonResponse(payload: unknown, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let action = "unknown";
+
   try {
     const accessToken = Deno.env.get("META_ACCESS_TOKEN");
     if (!accessToken) {
-      return new Response(
-        JSON.stringify({ error: "META_ACCESS_TOKEN not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ ok: false, error: "META_ACCESS_TOKEN not configured", data: null }, 200);
     }
 
-    const { action, accountId, campaignId, adSetId, dateRange } = await req.json();
+    const requestBody = await req.json();
+    action = requestBody?.action || "unknown";
+    const { accountId, campaignId, adSetId, dateRange } = requestBody;
 
     let timeRange = "";
     if (dateRange?.from && dateRange?.to) {
@@ -32,9 +41,12 @@ Deno.serve(async (req) => {
     }
 
     const metaFetch = async (url: string) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), META_TIMEOUT_MS);
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${accessToken}` },
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
       const data = await res.json();
       if (data.error) {
         throw new Error(data.error.message || JSON.stringify(data.error));
@@ -47,9 +59,12 @@ Deno.serve(async (req) => {
       let allData: any[] = [];
       let nextUrl: string | null = url;
       while (nextUrl) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), META_TIMEOUT_MS);
         const res: Response = await fetch(nextUrl, {
           headers: { Authorization: `Bearer ${accessToken}` },
-        });
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeoutId));
         const json: any = await res.json();
         if (json.error) throw new Error(json.error.message || JSON.stringify(json.error));
         allData = allData.concat(json.data || []);
@@ -411,15 +426,10 @@ Deno.serve(async (req) => {
         throw new Error(`Unknown action: ${action}`);
     }
 
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ ok: true, error: null, data: result }, 200);
   } catch (error: any) {
-    console.error("Meta API Error:", error);
-    return new Response(
-      JSON.stringify({ error: error.message || "Unknown error" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    console.error("Meta API Error:", { action, message: error?.message || "Unknown error" });
+    return jsonResponse({ ok: false, error: error?.message || "Unknown error", data: null }, 200);
   }
 });
 
