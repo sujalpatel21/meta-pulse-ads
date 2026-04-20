@@ -2,7 +2,7 @@
 // METAFLOW ANALYTICS — Meta Ads Service Layer
 // 
 // Calls the meta-ads edge function which proxies Meta Graph API.
-// Falls back to mock data if API call fails.
+// Surfaces real API errors and only uses mock data when explicitly disabled.
 // ================================================================
 
 import { mockClients, Client, Campaign, AdAccount, AdSet, Ad, DailyMetric, ABTest, getABTestsForAccount, getAllABTests } from "@/data/mockData";
@@ -26,10 +26,13 @@ export function getUseLiveData() {
 // ── Edge Function Caller ──────────────────────────────────────────
 
 const META_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meta-ads`;
+const META_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 const META_FUNCTION_HEADERS = {
   "Content-Type": "application/json",
-  apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  apikey: META_PUBLISHABLE_KEY,
+  Authorization: `Bearer ${META_PUBLISHABLE_KEY}`,
 };
+const META_FUNCTION_TIMEOUT_MS = 10_000;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -43,20 +46,30 @@ async function callMetaApi(action: string, params: Record<string, any> = {}): Pr
     }
 
     try {
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), META_FUNCTION_TIMEOUT_MS);
+
       const response = await fetch(META_FUNCTION_URL, {
         method: "POST",
+        mode: "cors",
+        cache: "no-store",
         headers: META_FUNCTION_HEADERS,
         body: JSON.stringify({ action, ...params }),
-      });
+        signal: controller.signal,
+      }).finally(() => window.clearTimeout(timeoutId));
 
-      const data = await response.json().catch(() => null);
+      const raw = await response.text();
+      const parsed = raw ? JSON.parse(raw) : null;
+      const data = parsed && typeof parsed === "object" && "ok" in parsed ? parsed.data : parsed;
+      const apiError = parsed && typeof parsed === "object" ? parsed.error : null;
+      const apiOk = parsed && typeof parsed === "object" && "ok" in parsed ? parsed.ok !== false : response.ok;
 
-      if (!response.ok) {
-        throw new Error(data?.error || `Meta API request failed (${response.status})`);
+      if (!response.ok || !apiOk) {
+        throw new Error(apiError || `Meta API request failed (${response.status})`);
       }
 
-      if (data?.error) {
-        throw new Error(data.error);
+      if (apiError) {
+        throw new Error(apiError);
       }
 
       return data;
@@ -64,7 +77,7 @@ async function callMetaApi(action: string, params: Record<string, any> = {}): Pr
       lastError = error;
       const message = error instanceof Error ? error.message : String(error);
       const isNetworkError =
-        error instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(message);
+        error instanceof TypeError || /failed to fetch|networkerror|load failed|abort/i.test(message);
 
       if (!isNetworkError || delay === retryDelays[retryDelays.length - 1]) {
         break;
