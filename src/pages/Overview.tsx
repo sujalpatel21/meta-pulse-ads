@@ -15,7 +15,8 @@ import {
 } from "@/components/dashboard/InsightCharts";
 
 export default function Overview() {
-  const { selectedAccount, campaigns, campaignsLoading: loading, apiError } = useDashboard();
+  const { selectedAccount, campaigns: rawCampaigns, campaignsLoading: loading, apiError } = useDashboard();
+  const campaigns = rawCampaigns ?? [];
   const accountName = selectedAccount?.accountName || "Loading...";
 
   const kpis = computeKPIs(campaigns);
