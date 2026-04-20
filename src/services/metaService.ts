@@ -32,7 +32,7 @@ const META_FUNCTION_HEADERS = {
   apikey: META_PUBLISHABLE_KEY,
   Authorization: `Bearer ${META_PUBLISHABLE_KEY}`,
 };
-const META_FUNCTION_TIMEOUT_MS = 10_000;
+const META_FUNCTION_TIMEOUT_MS = 20_000;
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -46,28 +46,15 @@ async function callMetaApi(action: string, params: Record<string, any> = {}): Pr
     }
 
     try {
-      const controller = new AbortController();
-      let didTimeout = false;
-      const timeoutId = window.setTimeout(() => {
-        didTimeout = true;
-        controller.abort();
-      }, META_FUNCTION_TIMEOUT_MS);
-
+      const timeoutSignal = AbortSignal.timeout(META_FUNCTION_TIMEOUT_MS);
       const response = await fetch(META_FUNCTION_URL, {
         method: "POST",
         mode: "cors",
         cache: "no-store",
         headers: META_FUNCTION_HEADERS,
         body: JSON.stringify({ action, ...params }),
-        signal: controller.signal,
-      }).catch((err) => {
-        window.clearTimeout(timeoutId);
-        if (didTimeout) {
-          throw new Error(`Meta API request timed out after ${META_FUNCTION_TIMEOUT_MS}ms`);
-        }
-        throw err;
+        signal: timeoutSignal,
       });
-      window.clearTimeout(timeoutId);
 
       const raw = await response.text();
       const parsed = raw ? JSON.parse(raw) : null;
@@ -85,10 +72,16 @@ async function callMetaApi(action: string, params: Record<string, any> = {}): Pr
 
       return data;
     } catch (error) {
-      lastError = error;
-      const message = error instanceof Error ? error.message : String(error);
+      const isTimeoutError =
+        error instanceof DOMException && error.name === "TimeoutError";
+      if (isTimeoutError) {
+        lastError = new Error(`Meta API request timed out after ${META_FUNCTION_TIMEOUT_MS}ms`);
+      } else {
+        lastError = error;
+      }
+      const message = lastError instanceof Error ? lastError.message : String(lastError);
       const isNetworkError =
-        error instanceof TypeError || /failed to fetch|networkerror|load failed|abort/i.test(message);
+        lastError instanceof TypeError || isTimeoutError || /failed to fetch|networkerror|load failed|abort|timeout/i.test(message);
 
       if (!isNetworkError || delay === retryDelays[retryDelays.length - 1]) {
         break;
