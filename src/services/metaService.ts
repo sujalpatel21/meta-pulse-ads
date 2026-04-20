@@ -5,7 +5,6 @@
 // Falls back to mock data if API call fails.
 // ================================================================
 
-import { supabase } from "@/integrations/supabase/client";
 import { mockClients, Client, Campaign, AdAccount, AdSet, Ad, DailyMetric, ABTest, getABTestsForAccount, getAllABTests } from "@/data/mockData";
 
 export interface DateRange {
@@ -26,22 +25,57 @@ export function getUseLiveData() {
 
 // ── Edge Function Caller ──────────────────────────────────────────
 
+const META_FUNCTION_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/meta-ads`;
+const META_FUNCTION_HEADERS = {
+  "Content-Type": "application/json",
+  apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+};
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function callMetaApi(action: string, params: Record<string, any> = {}): Promise<any> {
-  const { data, error } = await supabase.functions.invoke("meta-ads", {
-    body: { action, ...params },
-  });
+  const retryDelays = [0, 400, 1200];
+  let lastError: unknown;
 
-  if (error) {
-    console.error(`Meta API [${action}] error:`, error);
-    throw error;
+  for (const delay of retryDelays) {
+    if (delay > 0) {
+      await wait(delay);
+    }
+
+    try {
+      const response = await fetch(META_FUNCTION_URL, {
+        method: "POST",
+        headers: META_FUNCTION_HEADERS,
+        body: JSON.stringify({ action, ...params }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        throw new Error(data?.error || `Meta API request failed (${response.status})`);
+      }
+
+      if (data?.error) {
+        throw new Error(data.error);
+      }
+
+      return data;
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+      const isNetworkError =
+        error instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(message);
+
+      if (!isNetworkError || delay === retryDelays[retryDelays.length - 1]) {
+        break;
+      }
+    }
   }
 
-  if (data?.error) {
-    console.error(`Meta API [${action}] returned error:`, data.error);
-    throw new Error(data.error);
-  }
-
-  return data;
+  console.error(`Meta API [${action}] error:`, lastError);
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Failed to load live Meta data");
 }
 
 // ── Date range helper ─────────────────────────────────────────────
