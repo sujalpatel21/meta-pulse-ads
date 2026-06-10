@@ -31,6 +31,12 @@ export interface Ad {
   fatigueReason?: string;
   status: "Active" | "Paused";
   dailyMetrics: DailyMetric[];
+  headline?: string;
+  adCopy?: string;
+  description?: string;
+  callToAction?: string;
+  landingPage?: string;
+  targetAudience?: string;
 }
 
 export interface AdSet {

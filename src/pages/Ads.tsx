@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useDashboard } from "@/components/layout/Layout";
 import { Ad } from "@/data/mockData";
 import { fetchAds, getDateRangeFromPreset } from "@/services/metaService";
-import { ArrowLeft, AlertTriangle, CheckCircle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle, ExternalLink, Users, FileText, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatCurrencyFixed } from "@/lib/currency";
 
@@ -190,6 +190,68 @@ export default function Ads() {
                     )}
                   </div>
                 </div>
+
+                {(selectedAd.headline || selectedAd.adCopy || selectedAd.landingPage || selectedAd.targetAudience) && (
+                  <div className="mb-5 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {(selectedAd.headline || selectedAd.adCopy || selectedAd.description) && (
+                      <div className="p-4 rounded-lg space-y-2" style={{ background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))" }}>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider" style={{ color: "hsl(var(--muted-foreground))" }}>
+                          <Megaphone size={12} /> Ad Copy
+                        </div>
+                        {selectedAd.headline && (
+                          <div className="text-sm font-semibold" style={{ color: "hsl(var(--foreground))" }}>
+                            {selectedAd.headline}
+                          </div>
+                        )}
+                        {selectedAd.adCopy && (
+                          <p className="text-xs whitespace-pre-wrap line-clamp-6" style={{ color: "hsl(var(--foreground))" }}>
+                            {selectedAd.adCopy}
+                          </p>
+                        )}
+                        {selectedAd.description && (
+                          <p className="text-xs italic" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            {selectedAd.description}
+                          </p>
+                        )}
+                        {selectedAd.callToAction && (
+                          <span className="inline-block text-xs px-2 py-0.5 rounded-full font-medium mt-1" style={{ background: "hsl(var(--brand)/0.15)", color: "hsl(var(--brand))" }}>
+                            CTA: {selectedAd.callToAction.replace(/_/g, " ")}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      {selectedAd.landingPage && (
+                        <div className="p-4 rounded-lg" style={{ background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))" }}>
+                          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            <ExternalLink size={12} /> Landing Page
+                          </div>
+                          <a
+                            href={selectedAd.landingPage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs break-all hover:underline"
+                            style={{ color: "hsl(var(--brand))" }}
+                          >
+                            {selectedAd.landingPage}
+                          </a>
+                        </div>
+                      )}
+                      {selectedAd.targetAudience && (
+                        <div className="p-4 rounded-lg" style={{ background: "hsl(var(--muted))", border: "1px solid hsl(var(--border))" }}>
+                          <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "hsl(var(--muted-foreground))" }}>
+                            <Users size={12} /> Target Audience
+                          </div>
+                          <p className="text-xs" style={{ color: "hsl(var(--foreground))" }}>
+                            {selectedAd.targetAudience}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
 
                 <div className="mb-5 p-4 rounded-lg" style={{ background: "hsl(var(--muted))" }}>
                   <div className="flex justify-between items-center mb-2">
