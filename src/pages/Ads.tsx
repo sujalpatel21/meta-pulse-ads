@@ -124,8 +124,15 @@ export default function Ads() {
                     : "border-transparent hover:bg-muted"
                 )}
               >
-                <div className="flex items-center gap-2">
-                  <img src={ad.thumbnail} alt={ad.name} className="w-10 h-7 rounded object-cover shrink-0" />
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src={ad.thumbnail}
+                    alt={ad.name}
+                    loading="lazy"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://placehold.co/120x90/1a1a2e/666?text=Ad"; }}
+                    className="w-14 h-14 rounded-md object-cover shrink-0"
+                    style={{ border: "1px solid hsl(var(--border))" }}
+                  />
                   <div className="min-w-0">
                     <div className="text-xs font-medium truncate" style={{
                       color: selectedAd?.adId === ad.adId ? "hsl(var(--brand))" : "hsl(var(--foreground))"
