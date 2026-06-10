@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
           ? `.time_range(${JSON.stringify({ since: dateRange.from, until: dateRange.to })})`
           : "";
         const adFields =
-          `name,status,creative{thumbnail_url},insights${adInsightsTR}{spend,impressions,clicks,actions,purchase_roas,ctr,cpc}`;
+          `name,status,creative{thumbnail_url,image_url,object_story_spec},insights${adInsightsTR}{spend,impressions,clicks,actions,purchase_roas,ctr,cpc}`;
         const data = await metaFetchAll(
           `${META_BASE}/${adSetId}/ads?fields=${encodeURIComponent(adFields)}&limit=100`
         );
@@ -537,7 +537,12 @@ function transformAd(ad: any) {
   return {
     adId: ad.id,
     name: ad.name,
-    thumbnail: ad.creative?.thumbnail_url || "https://placehold.co/120x90/1a1a2e/666?text=Ad",
+    thumbnail:
+      ad.creative?.image_url ||
+      ad.creative?.object_story_spec?.link_data?.picture ||
+      ad.creative?.object_story_spec?.video_data?.image_url ||
+      ad.creative?.thumbnail_url ||
+      "https://placehold.co/120x90/1a1a2e/666?text=Ad",
     spend,
     impressions,
     clicks,

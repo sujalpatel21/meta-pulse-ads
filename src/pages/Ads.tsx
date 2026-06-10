@@ -124,8 +124,15 @@ export default function Ads() {
                     : "border-transparent hover:bg-muted"
                 )}
               >
-                <div className="flex items-center gap-2">
-                  <img src={ad.thumbnail} alt={ad.name} className="w-10 h-7 rounded object-cover shrink-0" />
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src={ad.thumbnail}
+                    alt={ad.name}
+                    loading="lazy"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://placehold.co/120x90/1a1a2e/666?text=Ad"; }}
+                    className="w-14 h-14 rounded-md object-cover shrink-0"
+                    style={{ border: "1px solid hsl(var(--border))" }}
+                  />
                   <div className="min-w-0">
                     <div className="text-xs font-medium truncate" style={{
                       color: selectedAd?.adId === ad.adId ? "hsl(var(--brand))" : "hsl(var(--foreground))"
@@ -243,9 +250,16 @@ export default function Ads() {
                           style={selectedAd?.adId === ad.adId ? { background: "hsl(var(--brand)/0.05)" } : {}}
                         >
                           <td>
-                            <div className="flex items-center gap-2">
-                              <img src={ad.thumbnail} className="w-8 h-6 rounded object-cover" alt="" />
-                              <span className="text-xs font-medium truncate max-w-[140px]" style={{ color: "hsl(var(--foreground))" }}>{ad.name}</span>
+                            <div className="flex items-center gap-2.5">
+                              <img
+                                src={ad.thumbnail}
+                                className="w-12 h-12 rounded-md object-cover shrink-0"
+                                style={{ border: "1px solid hsl(var(--border))" }}
+                                loading="lazy"
+                                onError={(e) => { (e.currentTarget as HTMLImageElement).src = "https://placehold.co/120x90/1a1a2e/666?text=Ad"; }}
+                                alt={ad.name}
+                              />
+                              <span className="text-xs font-medium truncate max-w-[180px]" style={{ color: "hsl(var(--foreground))" }}>{ad.name}</span>
                             </div>
                           </td>
                           <td className="font-mono text-xs">{formatCurrency(ad.spend, currency)}</td>
