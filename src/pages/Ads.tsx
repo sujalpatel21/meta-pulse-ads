@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useDashboard } from "@/components/layout/Layout";
 import { Ad } from "@/data/mockData";
 import { fetchAds, getDateRangeFromPreset } from "@/services/metaService";
-import { ArrowLeft, AlertTriangle, CheckCircle } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle, ExternalLink, Users, FileText, Megaphone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency, formatCurrencyFixed } from "@/lib/currency";
 
