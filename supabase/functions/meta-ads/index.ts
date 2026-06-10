@@ -537,7 +537,12 @@ function transformAd(ad: any) {
   return {
     adId: ad.id,
     name: ad.name,
-    thumbnail: ad.creative?.thumbnail_url || "https://placehold.co/120x90/1a1a2e/666?text=Ad",
+    thumbnail:
+      ad.creative?.image_url ||
+      ad.creative?.object_story_spec?.link_data?.picture ||
+      ad.creative?.object_story_spec?.video_data?.image_url ||
+      ad.creative?.thumbnail_url ||
+      "https://placehold.co/120x90/1a1a2e/666?text=Ad",
     spend,
     impressions,
     clicks,
