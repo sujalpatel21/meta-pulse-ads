@@ -520,6 +520,42 @@ function transformAdSet(as: any) {
   };
 }
 
+function describeTargeting(t: any): string {
+  if (!t || typeof t !== "object") return "";
+  const parts: string[] = [];
+  const geo = t.geo_locations;
+  if (geo) {
+    const locs: string[] = [];
+    if (Array.isArray(geo.countries)) locs.push(...geo.countries);
+    if (Array.isArray(geo.cities)) locs.push(...geo.cities.map((c: any) => c.name).filter(Boolean));
+    if (Array.isArray(geo.regions)) locs.push(...geo.regions.map((r: any) => r.name).filter(Boolean));
+    if (locs.length) parts.push(locs.slice(0, 3).join(", "));
+  }
+  if (t.age_min || t.age_max) parts.push(`Age ${t.age_min ?? 13}-${t.age_max ?? 65}`);
+  if (Array.isArray(t.genders) && t.genders.length) {
+    parts.push(t.genders.map((g: number) => (g === 1 ? "M" : g === 2 ? "F" : "All")).join("/"));
+  }
+  if (Array.isArray(t.interests) && t.interests.length) {
+    parts.push("Interests: " + t.interests.slice(0, 3).map((i: any) => i.name).filter(Boolean).join(", "));
+  }
+  if (Array.isArray(t.behaviors) && t.behaviors.length) {
+    parts.push("Behaviors: " + t.behaviors.slice(0, 2).map((i: any) => i.name).filter(Boolean).join(", "));
+  }
+  if (Array.isArray(t.custom_audiences) && t.custom_audiences.length) {
+    parts.push(`Custom Audience (${t.custom_audiences.length})`);
+  }
+  if (Array.isArray(t.flexible_spec) && t.flexible_spec.length) {
+    const names: string[] = [];
+    for (const fs of t.flexible_spec) {
+      for (const key of ["interests", "behaviors", "work_positions"]) {
+        if (Array.isArray(fs[key])) names.push(...fs[key].map((x: any) => x.name).filter(Boolean));
+      }
+    }
+    if (names.length) parts.push(names.slice(0, 3).join(", "));
+  }
+  return parts.join(" • ");
+}
+
 function transformAd(ad: any) {
   const insights = ad.insights?.data?.[0] || {};
   const spend = parseFloat(insights.spend || "0");
@@ -534,14 +570,43 @@ function transformAd(ad: any) {
     : 0;
   const ctr = parseFloat(insights.ctr || "0");
 
+  const creative = ad.creative || {};
+  const oss = creative.object_story_spec || {};
+  const linkData = oss.link_data || {};
+  const videoData = oss.video_data || {};
+
+  const headline =
+    creative.title ||
+    linkData.name ||
+    videoData.title ||
+    "";
+  const adCopy =
+    creative.body ||
+    linkData.message ||
+    videoData.message ||
+    "";
+  const description = linkData.description || "";
+  const landingPage =
+    creative.link_url ||
+    linkData.link ||
+    videoData.call_to_action?.value?.link ||
+    "";
+  const callToAction =
+    creative.call_to_action_type ||
+    linkData.call_to_action?.type ||
+    videoData.call_to_action?.type ||
+    "";
+
+  const targetAudience = describeTargeting(ad.adset?.targeting);
+
   return {
     adId: ad.id,
     name: ad.name,
     thumbnail:
-      ad.creative?.image_url ||
-      ad.creative?.object_story_spec?.link_data?.picture ||
-      ad.creative?.object_story_spec?.video_data?.image_url ||
-      ad.creative?.thumbnail_url ||
+      creative.image_url ||
+      linkData.picture ||
+      videoData.image_url ||
+      creative.thumbnail_url ||
       "https://placehold.co/120x90/1a1a2e/666?text=Ad",
     spend,
     impressions,
@@ -556,5 +621,11 @@ function transformAd(ad: any) {
     fatigueReason: undefined,
     status: ad.status === "ACTIVE" ? "Active" : "Paused",
     dailyMetrics: [],
+    headline,
+    adCopy,
+    description,
+    callToAction,
+    landingPage,
+    targetAudience,
   };
 }
