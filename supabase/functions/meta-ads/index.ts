@@ -126,7 +126,7 @@ Deno.serve(async (req) => {
           ? `.time_range(${JSON.stringify({ since: dateRange.from, until: dateRange.to })})`
           : "";
         const adFields =
-          `name,status,creative{thumbnail_url},insights${adInsightsTR}{spend,impressions,clicks,actions,purchase_roas,ctr,cpc}`;
+          `name,status,creative{thumbnail_url,image_url,object_story_spec},insights${adInsightsTR}{spend,impressions,clicks,actions,purchase_roas,ctr,cpc}`;
         const data = await metaFetchAll(
           `${META_BASE}/${adSetId}/ads?fields=${encodeURIComponent(adFields)}&limit=100`
         );
