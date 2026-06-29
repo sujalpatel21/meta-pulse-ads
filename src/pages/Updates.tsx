@@ -488,6 +488,8 @@ export default function Updates() {
               />
             </PopoverContent>
           </Popover>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Filter size={12} className="text-muted-foreground mr-1" />
             {categoryOptions.map((opt) => (
               <button
                 key={opt.value}
