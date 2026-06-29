@@ -4,11 +4,14 @@ import { Campaign, AdSet, Ad } from "@/data/mockData";
 import {
   Activity, Search, Download, Filter, ChevronDown, ChevronRight,
   PlusCircle, Edit3, DollarSign, AlertTriangle, PauseCircle, PlayCircle,
-  Megaphone, Layers, MousePointer2, Sparkles, Clock, X,
+  Megaphone, Layers, MousePointer2, Sparkles, Clock, X, CalendarIcon,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 
 // ============ Types ============
 type UpdateCategory =
