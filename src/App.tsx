@@ -15,6 +15,7 @@ import Budget from "./pages/Budget";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import ABTesting from "./pages/ABTesting";
+import Updates from "./pages/Updates";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/ads" element={<Ads />} />
             <Route path="/ab-testing" element={<ABTesting />} />
             <Route path="/alerts" element={<Alerts />} />
+            <Route path="/updates" element={<Updates />} />
             <Route path="/budget" element={<Budget />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
