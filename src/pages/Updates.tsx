@@ -5,6 +5,7 @@ import {
   Activity, Search, Download, Filter, ChevronDown, ChevronRight,
   PlusCircle, Edit3, DollarSign, AlertTriangle, PauseCircle, PlayCircle,
   Megaphone, Layers, MousePointer2, Sparkles, Clock, X,
+  type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
@@ -20,7 +21,7 @@ interface TimelineUpdate {
   id: string;
   category: UpdateCategory;
   severity: UpdateSeverity;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
+  icon: LucideIcon;
   title: string;
   objectType: "Campaign" | "Ad Set" | "Ad" | "Account";
   objectName: string;
