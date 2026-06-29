@@ -4,11 +4,14 @@ import { Campaign, AdSet, Ad } from "@/data/mockData";
 import {
   Activity, Search, Download, Filter, ChevronDown, ChevronRight,
   PlusCircle, Edit3, DollarSign, AlertTriangle, PauseCircle, PlayCircle,
-  Megaphone, Layers, MousePointer2, Sparkles, Clock, X,
+  Megaphone, Layers, MousePointer2, Sparkles, Clock, X, CalendarIcon,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/currency";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
 
 // ============ Types ============
 type UpdateCategory =
@@ -333,10 +336,17 @@ export default function Updates() {
   const [activeFilter, setActiveFilter] = useState<UpdateCategory | "all">("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [pickedDate, setPickedDate] = useState<Date | undefined>(undefined);
+  const [dateOpen, setDateOpen] = useState(false);
 
   const filtered = useMemo(() => {
     let list = allUpdates;
     if (activeFilter !== "all") list = list.filter((u) => u.category === activeFilter);
+    if (pickedDate) {
+      const start = new Date(pickedDate); start.setHours(0, 0, 0, 0);
+      const end = new Date(start); end.setDate(end.getDate() + 1);
+      list = list.filter((u) => u.timestamp >= start && u.timestamp < end);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((u) =>
@@ -346,7 +356,7 @@ export default function Updates() {
       );
     }
     return list;
-  }, [allUpdates, activeFilter, search]);
+  }, [allUpdates, activeFilter, search, pickedDate]);
 
   const grouped = useMemo(() => groupByDay(filtered), [filtered]);
 
@@ -444,6 +454,40 @@ export default function Updates() {
               </button>
             )}
           </div>
+          <Popover open={dateOpen} onOpenChange={setDateOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors hover:bg-muted",
+                  pickedDate && "border-[hsl(var(--brand))] text-[hsl(var(--brand))]"
+                )}
+                style={{
+                  background: "hsl(var(--background-card))",
+                  borderColor: pickedDate ? undefined : "hsl(var(--border))",
+                  color: pickedDate ? undefined : "hsl(var(--foreground))",
+                }}
+              >
+                <CalendarIcon size={13} />
+                {pickedDate ? format(pickedDate, "MMM d, yyyy") : "Pick a date"}
+                {pickedDate && (
+                  <X
+                    size={12}
+                    className="ml-1 opacity-70 hover:opacity-100"
+                    onClick={(e) => { e.stopPropagation(); setPickedDate(undefined); }}
+                  />
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={pickedDate}
+                onSelect={(d) => { setPickedDate(d); setDateOpen(false); }}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
           <div className="flex items-center gap-1.5 flex-wrap">
             <Filter size={12} className="text-muted-foreground mr-1" />
             {categoryOptions.map((opt) => (
