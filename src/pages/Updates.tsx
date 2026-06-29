@@ -336,10 +336,17 @@ export default function Updates() {
   const [activeFilter, setActiveFilter] = useState<UpdateCategory | "all">("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [pickedDate, setPickedDate] = useState<Date | undefined>(undefined);
+  const [dateOpen, setDateOpen] = useState(false);
 
   const filtered = useMemo(() => {
     let list = allUpdates;
     if (activeFilter !== "all") list = list.filter((u) => u.category === activeFilter);
+    if (pickedDate) {
+      const start = new Date(pickedDate); start.setHours(0, 0, 0, 0);
+      const end = new Date(start); end.setDate(end.getDate() + 1);
+      list = list.filter((u) => u.timestamp >= start && u.timestamp < end);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((u) =>
@@ -349,7 +356,7 @@ export default function Updates() {
       );
     }
     return list;
-  }, [allUpdates, activeFilter, search]);
+  }, [allUpdates, activeFilter, search, pickedDate]);
 
   const grouped = useMemo(() => groupByDay(filtered), [filtered]);
 
