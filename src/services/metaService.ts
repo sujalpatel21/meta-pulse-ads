@@ -470,6 +470,35 @@ export async function fetchDailyReport(accountId: string): Promise<DailyReportDa
   return await callMetaApi("get_daily_report", { accountId });
 }
 
+// ── Activity Log (real Meta change history) ───────────────────────
+
+export interface MetaActivity {
+  id: string;
+  eventType: string;
+  eventLabel: string;
+  eventTime: string;
+  objectId: string;
+  objectName: string;
+  objectType: string;
+  actorName: string;
+  oldValue: string | null;
+  newValue: string | null;
+}
+
+export async function fetchActivities(
+  accountId: string,
+  dateRange?: DateRange
+): Promise<MetaActivity[]> {
+  if (!_useLiveData) return [];
+  try {
+    const data = await callMetaApi("get_activities", { accountId, dateRange });
+    return Array.isArray(data) ? data : [];
+  } catch (e) {
+    console.warn("Activities fetch error:", e);
+    throw e;
+  }
+}
+
 // ── A/B Tests ─────────────────────────────────────────────────────
 
 export async function fetchABTests(

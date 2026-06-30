@@ -422,6 +422,47 @@ Deno.serve(async (req) => {
         break;
       }
 
+      case "get_activities": {
+        if (!accountId) throw new Error("accountId required");
+        const acctId = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
+        const sinceStr = dateRange?.from || new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+        const untilStr = dateRange?.to || new Date().toISOString().slice(0, 10);
+        const sinceTs = Math.floor(new Date(`${sinceStr}T00:00:00Z`).getTime() / 1000);
+        const untilTs = Math.floor(new Date(`${untilStr}T23:59:59Z`).getTime() / 1000);
+
+        const activities = await metaFetchAll(
+          `${META_BASE}/${acctId}/activities?fields=event_type,event_time,object_name,object_id,object_type,actor_name,extra_data,translated_event_type&since=${sinceTs}&until=${untilTs}&limit=200`
+        );
+
+        result = activities.map((a: any) => {
+          let extra: any = null;
+          try {
+            extra = typeof a.extra_data === "string" ? JSON.parse(a.extra_data) : a.extra_data;
+          } catch { extra = null; }
+          let oldValue: string | null = null;
+          let newValue: string | null = null;
+          if (extra) {
+            const ov = extra.old_value ?? extra.old ?? extra.from;
+            const nv = extra.new_value ?? extra.new ?? extra.to;
+            if (ov !== undefined && ov !== null) oldValue = String(ov);
+            if (nv !== undefined && nv !== null) newValue = String(nv);
+          }
+          return {
+            id: `${a.object_id || "x"}-${a.event_time || Math.random()}`,
+            eventType: a.event_type || "",
+            eventLabel: a.translated_event_type || a.event_type || "Change",
+            eventTime: a.event_time,
+            objectId: a.object_id || "",
+            objectName: a.object_name || "",
+            objectType: a.object_type || "",
+            actorName: a.actor_name || "",
+            oldValue,
+            newValue,
+          };
+        });
+        break;
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }

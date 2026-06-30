@@ -1,10 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDashboard } from "@/components/layout/Layout";
-import { Campaign, AdSet, Ad } from "@/data/mockData";
 import {
   Activity, Search, Download, Filter, ChevronDown, ChevronRight,
   PlusCircle, Edit3, DollarSign, AlertTriangle, PauseCircle, PlayCircle,
-  Megaphone, Layers, MousePointer2, Sparkles, Clock, X, CalendarIcon,
+  Layers, MousePointer2, Clock, X, CalendarIcon, RefreshCw,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,11 +11,12 @@ import { formatCurrency } from "@/lib/currency";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
+import { fetchActivities, getDateRangeFromPreset, MetaActivity } from "@/services/metaService";
 
 // ============ Types ============
 type UpdateCategory =
-  | "campaign" | "adset" | "ad" | "budget" | "error"
-  | "learning" | "status" | "delivery" | "policy" | "performance";
+  | "campaign" | "adset" | "ad" | "budget"
+  | "status" | "delivery" | "targeting" | "creative" | "other";
 
 type UpdateSeverity = "green" | "blue" | "orange" | "red" | "gray" | "purple";
 
@@ -26,235 +26,128 @@ interface TimelineUpdate {
   severity: UpdateSeverity;
   icon: LucideIcon;
   title: string;
-  objectType: "Campaign" | "Ad Set" | "Ad" | "Account";
+  objectType: string;
   objectName: string;
   oldValue?: string;
   newValue?: string;
   delta?: string;
   reason?: string;
-  status?: "Success" | "Warning" | "Failed";
+  actor?: string;
   timestamp: Date;
-  details?: Record<string, string>;
+  rawEventType: string;
 }
 
-// ============ Update inference engine ============
-function inferUpdates(campaigns: Campaign[], rangeDays: number, currency: string): TimelineUpdate[] {
-  const updates: TimelineUpdate[] = [];
-  const now = new Date();
-  const seed = (s: string) => {
-    let h = 0;
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-    return h;
+// ============ Classify a Meta activity ============
+function classify(a: MetaActivity, currency: string): TimelineUpdate {
+  const et = (a.eventType || "").toLowerCase();
+  const label = a.eventLabel || a.eventType || "Change";
+  const objType = a.objectType || (et.includes("campaign") ? "Campaign" : et.includes("adset") ? "Ad Set" : et.includes("ad") ? "Ad" : "Object");
+
+  let category: UpdateCategory = "other";
+  let severity: UpdateSeverity = "blue";
+  let icon: LucideIcon = Edit3;
+  let title = label;
+
+  // Helpers to detect currency-style budget fields (Meta sends minor units)
+  const isBudgetField = et.includes("budget") || /budget/i.test(label);
+  const formatVal = (v: string | null) => {
+    if (v === null || v === undefined) return undefined;
+    if (isBudgetField && /^-?\d+(\.\d+)?$/.test(v)) {
+      // Meta returns budgets in minor units (cents/paise)
+      return formatCurrency(parseFloat(v) / 100, currency);
+    }
+    return v;
   };
-  const offsetDate = (key: string, maxHoursAgo: number) => {
-    const h = seed(key);
-    const hoursBack = h % Math.max(1, Math.floor(maxHoursAgo));
-    const d = new Date(now);
-    d.setHours(d.getHours() - hoursBack);
-    return d;
+
+  if (et.includes("create") || et.includes("created")) {
+    category = objType.toLowerCase().includes("campaign") ? "campaign"
+      : objType.toLowerCase().includes("ad_set") || objType.toLowerCase().includes("adset") ? "adset"
+      : "ad";
+    severity = "green";
+    icon = PlusCircle;
+    title = `${objType} Created`;
+  } else if (et.includes("delete") || et.includes("remove")) {
+    category = "status";
+    severity = "red";
+    icon = X;
+    title = `${objType} Deleted`;
+  } else if (et.includes("pause")) {
+    category = "status";
+    severity = "gray";
+    icon = PauseCircle;
+    title = `${objType} Paused`;
+  } else if (et.includes("unpause") || et.includes("resume") || et.includes("activate")) {
+    category = "status";
+    severity = "green";
+    icon = PlayCircle;
+    title = `${objType} Activated`;
+  } else if (isBudgetField) {
+    category = "budget";
+    severity = "orange";
+    icon = DollarSign;
+    title = "Budget Updated";
+  } else if (et.includes("bid")) {
+    category = "budget";
+    severity = "orange";
+    icon = DollarSign;
+    title = "Bid Updated";
+  } else if (et.includes("targeting") || et.includes("audience")) {
+    category = "targeting";
+    severity = "blue";
+    icon = Edit3;
+    title = "Targeting Updated";
+  } else if (et.includes("creative")) {
+    category = "creative";
+    severity = "purple";
+    icon = MousePointer2;
+    title = "Creative Updated";
+  } else if (et.includes("status")) {
+    category = "status";
+    severity = "blue";
+    icon = Edit3;
+    title = "Status Changed";
+  } else if (et.includes("schedule") || et.includes("delivery") || et.includes("placement")) {
+    category = "delivery";
+    severity = "blue";
+    icon = Edit3;
+    title = label;
+  } else {
+    // Default: keep Meta's translated label
+    if (objType.toLowerCase().includes("campaign")) { category = "campaign"; icon = Layers; }
+    else if (objType.toLowerCase().includes("set")) { category = "adset"; icon = Layers; }
+    else if (objType.toLowerCase().includes("ad")) { category = "ad"; icon = MousePointer2; }
+  }
+
+  const oldFmt = formatVal(a.oldValue);
+  const newFmt = formatVal(a.newValue);
+
+  let delta: string | undefined;
+  if (isBudgetField && a.oldValue && a.newValue && /^-?\d+(\.\d+)?$/.test(a.oldValue) && /^-?\d+(\.\d+)?$/.test(a.newValue)) {
+    const o = parseFloat(a.oldValue);
+    const n = parseFloat(a.newValue);
+    if (o !== 0) {
+      const pct = ((n - o) / Math.abs(o)) * 100;
+      delta = `${pct >= 0 ? "+" : ""}${pct.toFixed(0)}%`;
+      if (pct < 0) severity = "orange";
+    }
+  }
+
+  return {
+    id: a.id,
+    category,
+    severity,
+    icon,
+    title,
+    objectType: objType,
+    objectName: a.objectName || a.objectId || "—",
+    oldValue: oldFmt,
+    newValue: newFmt,
+    delta,
+    reason: label !== title ? label : undefined,
+    actor: a.actorName,
+    timestamp: a.eventTime ? new Date(a.eventTime) : new Date(),
+    rawEventType: a.eventType,
   };
-
-  const totalHours = rangeDays * 24;
-
-  campaigns.forEach((c, ci) => {
-    // Campaign Created (oldest campaigns)
-    updates.push({
-      id: `c-create-${c.campaignId}`,
-      category: "campaign",
-      severity: "green",
-      icon: PlusCircle,
-      title: "Campaign Created",
-      objectType: "Campaign",
-      objectName: c.name,
-      reason: c.objective,
-      status: "Success",
-      timestamp: offsetDate(`create${c.campaignId}`, totalHours),
-      details: { Objective: c.objective, Budget: formatCurrency(c.budget, currency) },
-    });
-
-    // Status change
-    updates.push({
-      id: `c-status-${c.campaignId}`,
-      category: "status",
-      severity: c.status === "Active" ? "green" : "gray",
-      icon: c.status === "Active" ? PlayCircle : PauseCircle,
-      title: c.status === "Active" ? "Campaign Activated" : "Campaign Paused",
-      objectType: "Campaign",
-      objectName: c.name,
-      status: "Success",
-      timestamp: offsetDate(`status${c.campaignId}`, totalHours * 0.6),
-    });
-
-    // Budget changes — infer one per campaign
-    if (ci % 2 === 0) {
-      const oldBudget = Math.round(c.budget * 0.7);
-      const pct = Math.round(((c.budget - oldBudget) / oldBudget) * 100);
-      updates.push({
-        id: `c-budget-${c.campaignId}`,
-        category: "budget",
-        severity: "orange",
-        icon: DollarSign,
-        title: "Budget Increased",
-        objectType: "Campaign",
-        objectName: c.name,
-        oldValue: formatCurrency(oldBudget, currency),
-        newValue: formatCurrency(c.budget, currency),
-        delta: `+${pct}%`,
-        status: "Success",
-        timestamp: offsetDate(`budget${c.campaignId}`, totalHours * 0.4),
-        details: { "Updated by": "Meta API" },
-      });
-    }
-
-    // Learning phase signal — low spend or low ROAS hint
-    if (c.spend > 0 && c.roas < 1 && c.status === "Active") {
-      updates.push({
-        id: `c-learn-${c.campaignId}`,
-        category: "learning",
-        severity: "blue",
-        icon: Sparkles,
-        title: "Learning Phase Started",
-        objectType: "Campaign",
-        objectName: c.name,
-        reason: "Optimizing delivery — gathering signals",
-        status: "Warning",
-        timestamp: offsetDate(`learn${c.campaignId}`, totalHours * 0.5),
-      });
-    }
-    if (c.spend > 5000 && c.roas < 0.8) {
-      updates.push({
-        id: `c-learn-lim-${c.campaignId}`,
-        category: "learning",
-        severity: "orange",
-        icon: AlertTriangle,
-        title: "Learning Limited",
-        objectType: "Campaign",
-        objectName: c.name,
-        reason: "Not enough conversions to exit learning",
-        status: "Warning",
-        timestamp: offsetDate(`learnlim${c.campaignId}`, totalHours * 0.3),
-      });
-    }
-
-    // Performance alerts
-    if (c.ctr < 1 && c.spend > 1000) {
-      updates.push({
-        id: `c-perf-ctr-${c.campaignId}`,
-        category: "performance",
-        severity: "red",
-        icon: AlertTriangle,
-        title: "CTR Dropped Below 1%",
-        objectType: "Campaign",
-        objectName: c.name,
-        reason: `Current CTR ${c.ctr.toFixed(2)}% — review creatives`,
-        status: "Warning",
-        timestamp: offsetDate(`perfctr${c.campaignId}`, totalHours * 0.2),
-      });
-    }
-    if (c.cpc > 50) {
-      updates.push({
-        id: `c-perf-cpc-${c.campaignId}`,
-        category: "performance",
-        severity: "orange",
-        icon: AlertTriangle,
-        title: "CPC Spike Detected",
-        objectType: "Campaign",
-        objectName: c.name,
-        reason: `CPC at ${formatCurrency(c.cpc, currency)} — above benchmark`,
-        status: "Warning",
-        timestamp: offsetDate(`perfcpc${c.campaignId}`, totalHours * 0.25),
-      });
-    }
-
-    // Ad Sets
-    c.adSets?.forEach((as: AdSet, ai) => {
-      updates.push({
-        id: `as-create-${as.adSetId}`,
-        category: "adset",
-        severity: "green",
-        icon: Layers,
-        title: "Ad Set Created",
-        objectType: "Ad Set",
-        objectName: as.name,
-        reason: `Audience: ${as.audienceType}`,
-        status: "Success",
-        timestamp: offsetDate(`ascreate${as.adSetId}`, totalHours * 0.9),
-      });
-      if (ai === 0) {
-        updates.push({
-          id: `as-aud-${as.adSetId}`,
-          category: "adset",
-          severity: "blue",
-          icon: Edit3,
-          title: "Audience Changed",
-          objectType: "Ad Set",
-          objectName: as.name,
-          oldValue: "Broad",
-          newValue: as.audienceType,
-          status: "Success",
-          timestamp: offsetDate(`asaud${as.adSetId}`, totalHours * 0.45),
-        });
-      }
-
-      // Ads
-      as.ads?.forEach((ad: Ad, idx) => {
-        updates.push({
-          id: `ad-create-${ad.adId}`,
-          category: "ad",
-          severity: "green",
-          icon: MousePointer2,
-          title: "Ad Published",
-          objectType: "Ad",
-          objectName: ad.name,
-          status: "Success",
-          timestamp: offsetDate(`adcreate${ad.adId}`, totalHours * 0.85),
-        });
-        if (ad.fatigue) {
-          updates.push({
-            id: `ad-fatigue-${ad.adId}`,
-            category: "performance",
-            severity: "red",
-            icon: AlertTriangle,
-            title: "Creative Fatigue Detected",
-            objectType: "Ad",
-            objectName: ad.name,
-            reason: ad.fatigueReason || "Frequency too high",
-            status: "Warning",
-            timestamp: offsetDate(`adfatigue${ad.adId}`, totalHours * 0.15),
-          });
-        }
-        if (idx === 0 && ci === 0) {
-          updates.push({
-            id: `ad-reject-${ad.adId}`,
-            category: "policy",
-            severity: "red",
-            icon: AlertTriangle,
-            title: "Ad Rejected",
-            objectType: "Ad",
-            objectName: ad.name,
-            reason: "Policy violation — too much text on image",
-            status: "Failed",
-            timestamp: offsetDate(`adreject${ad.adId}`, totalHours * 0.1),
-          });
-        }
-        if (ad.status === "Paused") {
-          updates.push({
-            id: `ad-pause-${ad.adId}`,
-            category: "status",
-            severity: "gray",
-            icon: PauseCircle,
-            title: "Ad Paused",
-            objectType: "Ad",
-            objectName: ad.name,
-            status: "Success",
-            timestamp: offsetDate(`adpause${ad.adId}`, totalHours * 0.35),
-          });
-        }
-      });
-    });
-  });
-
-  return updates.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 }
 
 // ============ Helpers ============
@@ -273,12 +166,11 @@ const categoryOptions: { value: UpdateCategory | "all"; label: string }[] = [
   { value: "campaign", label: "Campaign" },
   { value: "adset", label: "Ad Set" },
   { value: "ad", label: "Ads" },
-  { value: "error", label: "Errors" },
-  { value: "learning", label: "Learning Phase" },
-  { value: "status", label: "Status Changes" },
+  { value: "status", label: "Status" },
+  { value: "targeting", label: "Targeting" },
+  { value: "creative", label: "Creative" },
   { value: "delivery", label: "Delivery" },
-  { value: "policy", label: "Policy Issues" },
-  { value: "performance", label: "Performance Alerts" },
+  { value: "other", label: "Other" },
 ];
 
 function groupByDay(items: TimelineUpdate[]): Record<string, TimelineUpdate[]> {
@@ -299,10 +191,10 @@ function groupByDay(items: TimelineUpdate[]): Record<string, TimelineUpdate[]> {
 
 function exportCSV(items: TimelineUpdate[]) {
   const rows = [
-    ["Time", "Category", "Title", "Object Type", "Object", "Old", "New", "Delta", "Reason", "Status"],
+    ["Time", "Category", "Event", "Object Type", "Object", "Old", "New", "Delta", "Actor"],
     ...items.map((u) => [
       u.timestamp.toISOString(), u.category, u.title, u.objectType, u.objectName,
-      u.oldValue ?? "", u.newValue ?? "", u.delta ?? "", u.reason ?? "", u.status ?? "",
+      u.oldValue ?? "", u.newValue ?? "", u.delta ?? "", u.actor ?? "",
     ]),
   ];
   const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
@@ -315,23 +207,12 @@ function exportCSV(items: TimelineUpdate[]) {
 
 // ============ Page ============
 export default function Updates() {
-  const { campaigns: rawCampaigns, selectedAccount, dateRange, campaignsLoading } = useDashboard();
-  const campaigns = rawCampaigns ?? [];
+  const { selectedAccount, dateRange } = useDashboard();
   const currency = selectedAccount?.currency || "INR";
 
-  const rangeDays = useMemo(() => {
-    const map: Record<string, number> = {
-      today: 1, yesterday: 1, thisWeek: 7, last7: 7, last14: 14,
-      thisMonth: 30, last30: 30, lastMonth: 30, last90: 90, last6months: 180,
-      thisYear: 365, lastYear: 365,
-    };
-    return map[dateRange] || 7;
-  }, [dateRange]);
-
-  const allUpdates = useMemo(
-    () => inferUpdates(campaigns, rangeDays, currency),
-    [campaigns, rangeDays, currency]
-  );
+  const [activities, setActivities] = useState<MetaActivity[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [activeFilter, setActiveFilter] = useState<UpdateCategory | "all">("all");
   const [search, setSearch] = useState("");
@@ -339,42 +220,58 @@ export default function Updates() {
   const [pickedDate, setPickedDate] = useState<Date | undefined>(undefined);
   const [dateOpen, setDateOpen] = useState(false);
 
+  const load = async () => {
+    if (!selectedAccount) return;
+    setLoading(true);
+    setError(null);
+    try {
+      // When a specific date is picked, fetch just that day; otherwise use global range
+      const range = pickedDate
+        ? { from: format(pickedDate, "yyyy-MM-dd"), to: format(pickedDate, "yyyy-MM-dd") }
+        : getDateRangeFromPreset(dateRange);
+      const data = await fetchActivities(selectedAccount.accountId, range);
+      setActivities(data);
+    } catch (e: any) {
+      setError(e?.message || "Failed to load activity log from Meta");
+      setActivities([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [selectedAccount?.accountId, dateRange, pickedDate]);
+
+  const allUpdates = useMemo(
+    () => activities.map((a) => classify(a, currency)).sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()),
+    [activities, currency]
+  );
+
   const filtered = useMemo(() => {
     let list = allUpdates;
     if (activeFilter !== "all") list = list.filter((u) => u.category === activeFilter);
-    if (pickedDate) {
-      const start = new Date(pickedDate); start.setHours(0, 0, 0, 0);
-      const end = new Date(start); end.setDate(end.getDate() + 1);
-      list = list.filter((u) => u.timestamp >= start && u.timestamp < end);
-    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((u) =>
         u.objectName.toLowerCase().includes(q) ||
         u.title.toLowerCase().includes(q) ||
-        (u.reason || "").toLowerCase().includes(q)
+        u.rawEventType.toLowerCase().includes(q)
       );
     }
     return list;
-  }, [allUpdates, activeFilter, search, pickedDate]);
+  }, [allUpdates, activeFilter, search]);
 
   const grouped = useMemo(() => groupByDay(filtered), [filtered]);
 
-  // Summary stats (today)
-  const todayUpdates = allUpdates.filter((u) => {
-    const t = new Date(); t.setHours(0, 0, 0, 0);
-    const d = new Date(u.timestamp); d.setHours(0, 0, 0, 0);
-    return t.getTime() === d.getTime();
-  });
+  // Summary stats — based on the loaded window
   const summary = {
-    total: todayUpdates.length,
-    budget: todayUpdates.filter((u) => u.category === "budget").length,
-    newCampaigns: todayUpdates.filter((u) => u.title === "Campaign Created").length,
-    adsCreated: todayUpdates.filter((u) => u.title === "Ad Published").length,
-    errors: todayUpdates.filter((u) => u.category === "error" || u.status === "Failed").length,
-    rejections: todayUpdates.filter((u) => u.title === "Ad Rejected").length,
-    learningStarted: todayUpdates.filter((u) => u.title === "Learning Phase Started").length,
-    learningLimited: todayUpdates.filter((u) => u.title === "Learning Limited").length,
+    total: allUpdates.length,
+    budget: allUpdates.filter((u) => u.category === "budget").length,
+    campaigns: allUpdates.filter((u) => u.category === "campaign").length,
+    adsets: allUpdates.filter((u) => u.category === "adset").length,
+    ads: allUpdates.filter((u) => u.category === "ad").length,
+    status: allUpdates.filter((u) => u.category === "status").length,
+    targeting: allUpdates.filter((u) => u.category === "targeting").length,
+    creative: allUpdates.filter((u) => u.category === "creative").length,
   };
 
   const toggleExpand = (id: string) =>
@@ -394,34 +291,52 @@ export default function Updates() {
             Updates Center
           </h1>
           <p className="text-sm mt-0.5 text-muted-foreground">
-            {selectedAccount?.accountName || "—"} · Change timeline for the selected date range
+            {selectedAccount?.accountName || "—"} · Live change log from Meta Activity API
           </p>
         </div>
-        <button
-          onClick={() => exportCSV(filtered)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors hover:bg-muted"
-          style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--foreground))" }}
-        >
-          <Download size={14} /> Export CSV
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={load}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors hover:bg-muted disabled:opacity-50"
+            style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--foreground))" }}
+          >
+            <RefreshCw size={14} className={cn(loading && "animate-spin")} /> Refresh
+          </button>
+          <button
+            onClick={() => exportCSV(filtered)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors hover:bg-muted"
+            style={{ borderColor: "hsl(var(--border))", color: "hsl(var(--foreground))" }}
+          >
+            <Download size={14} /> Export CSV
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-400">
+          ⚠️ {error}
+        </div>
+      )}
 
       {/* Summary */}
       <div className="chart-card p-5">
         <div className="flex items-center gap-2 mb-4">
           <span className="w-1.5 h-4 rounded-full bg-[hsl(var(--chart-1))]" />
-          <h3 className="text-sm font-semibold text-foreground">Today's Changes</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            {pickedDate ? `Changes on ${format(pickedDate, "MMM d, yyyy")}` : "Changes in selected range"}
+          </h3>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
           {[
             { label: "Total", value: summary.total, color: "text-foreground" },
             { label: "Budget", value: summary.budget, color: "text-amber-400" },
-            { label: "New Campaigns", value: summary.newCampaigns, color: "text-emerald-400" },
-            { label: "Ads Created", value: summary.adsCreated, color: "text-emerald-400" },
-            { label: "Errors", value: summary.errors, color: "text-rose-400" },
-            { label: "Rejections", value: summary.rejections, color: "text-rose-400" },
-            { label: "Learning Started", value: summary.learningStarted, color: "text-sky-400" },
-            { label: "Learning Limited", value: summary.learningLimited, color: "text-amber-400" },
+            { label: "Campaigns", value: summary.campaigns, color: "text-emerald-400" },
+            { label: "Ad Sets", value: summary.adsets, color: "text-sky-400" },
+            { label: "Ads", value: summary.ads, color: "text-sky-400" },
+            { label: "Status", value: summary.status, color: "text-slate-400" },
+            { label: "Targeting", value: summary.targeting, color: "text-sky-400" },
+            { label: "Creative", value: summary.creative, color: "text-violet-400" },
           ].map((s) => (
             <div key={s.label} className="rounded-lg p-3 border" style={{
               background: "hsl(var(--background-card))",
@@ -445,7 +360,7 @@ export default function Updates() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search campaigns, ads, errors..."
+              placeholder="Search campaigns, ads, events..."
               className="bg-transparent border-none outline-none text-sm flex-1 text-foreground"
             />
             {search && (
@@ -510,7 +425,7 @@ export default function Updates() {
       </div>
 
       {/* Timeline */}
-      {campaignsLoading ? (
+      {loading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => <div key={i} className="h-16 bg-muted rounded-lg animate-pulse" />)}
         </div>
@@ -518,7 +433,10 @@ export default function Updates() {
         <div className="chart-card p-12 text-center">
           <Activity size={32} className="mx-auto text-muted-foreground mb-3" />
           <p className="text-sm text-muted-foreground">
-            No campaign changes were detected during the selected date range.
+            No changes recorded by Meta for {pickedDate ? format(pickedDate, "MMM d, yyyy") : "the selected date range"}.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            This timeline shows only real edits captured in Meta's Activity Log — no inferred events.
           </p>
         </div>
       ) : (
@@ -562,21 +480,11 @@ export default function Updates() {
                                     <span className={cn("text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wide", sev.bg, sev.text)}>
                                       {u.objectType}
                                     </span>
-                                    {u.status && (
-                                      <span className={cn(
-                                        "text-[10px] px-1.5 py-0.5 rounded font-medium",
-                                        u.status === "Success" && "bg-emerald-500/10 text-emerald-400",
-                                        u.status === "Warning" && "bg-amber-500/10 text-amber-400",
-                                        u.status === "Failed" && "bg-rose-500/10 text-rose-400",
-                                      )}>
-                                        {u.status}
-                                      </span>
-                                    )}
                                   </div>
                                   <div className="text-xs text-muted-foreground mt-1 truncate">{u.objectName}</div>
 
                                   {(u.oldValue || u.newValue) && (
-                                    <div className="flex items-center gap-2 mt-2 text-xs">
+                                    <div className="flex items-center gap-2 mt-2 text-xs flex-wrap">
                                       {u.oldValue && (
                                         <span className="px-2 py-0.5 rounded bg-muted text-muted-foreground line-through">
                                           {u.oldValue}
@@ -614,16 +522,20 @@ export default function Updates() {
                                 <div className="mt-3 pt-3 border-t space-y-2 animate-fade-in" style={{ borderColor: "hsl(var(--border))" }}>
                                   {u.reason && (
                                     <div className="text-xs">
-                                      <span className="text-muted-foreground">Reason: </span>
+                                      <span className="text-muted-foreground">Event: </span>
                                       <span className="text-foreground">{u.reason}</span>
                                     </div>
                                   )}
-                                  {u.details && Object.entries(u.details).map(([k, v]) => (
-                                    <div key={k} className="text-xs">
-                                      <span className="text-muted-foreground">{k}: </span>
-                                      <span className="text-foreground">{v}</span>
+                                  <div className="text-xs">
+                                    <span className="text-muted-foreground">Event Type: </span>
+                                    <span className="text-foreground font-mono">{u.rawEventType}</span>
+                                  </div>
+                                  {u.actor && (
+                                    <div className="text-xs">
+                                      <span className="text-muted-foreground">Changed by: </span>
+                                      <span className="text-foreground">{u.actor}</span>
                                     </div>
-                                  ))}
+                                  )}
                                   <div className="text-xs">
                                     <span className="text-muted-foreground">Timestamp: </span>
                                     <span className="text-foreground">{u.timestamp.toLocaleString()}</span>
