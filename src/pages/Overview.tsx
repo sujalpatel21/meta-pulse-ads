@@ -4,6 +4,7 @@ import KPICards, { buildKPIData } from "@/components/dashboard/KPICards";
 import { PerformanceSummary } from "@/components/dashboard/Charts";
 import CampaignTable from "@/components/dashboard/CampaignTable";
 import AIInsights from "@/components/dashboard/AIInsights";
+import TokenExpiryTimeline from "@/components/dashboard/TokenExpiryTimeline";
 import AlertsBanner from "@/components/alerts/AlertsBanner";
 import {
   CampaignHealthHeatmap,
