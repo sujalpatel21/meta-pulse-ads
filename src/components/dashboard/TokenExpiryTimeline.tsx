@@ -26,7 +26,7 @@ export default function TokenExpiryTimeline() {
       : state === "warn"
       ? "hsl(38 92% 55%)"
       : "hsl(142 71% 45%)";
-  const soft = (a: number) => color.replace("hsl(", "hsla(").replace(")", `, ${a})`);
+  const soft = (a: number) => color.replace(")", ` / ${a})`);
 
   const fmt = (d: Date) =>
     d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
