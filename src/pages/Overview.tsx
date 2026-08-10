@@ -51,8 +51,16 @@ export default function Overview() {
         </div>
       )}
 
-      {/* AI Insights */}
-      {!loading && campaigns.length > 0 && <AIInsights campaigns={campaigns} />}
+      {/* Token expiry + AI Insights */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="lg:col-span-4">
+          <TokenExpiryTimeline />
+        </div>
+        <div className="lg:col-span-8">
+          {!loading && campaigns.length > 0 && <AIInsights campaigns={campaigns} />}
+        </div>
+      </div>
+
 
       {/* Alerts Banner */}
       {!loading && <AlertsBanner campaigns={campaigns} />}
