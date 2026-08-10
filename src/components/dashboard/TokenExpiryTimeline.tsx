@@ -22,10 +22,11 @@ export default function TokenExpiryTimeline() {
   const state = daysLeft <= 7 ? "critical" : daysLeft <= 20 ? "warn" : "ok";
   const color =
     state === "critical"
-      ? "hsl(var(--metric-negative))"
+      ? "hsl(0 84% 60%)"
       : state === "warn"
       ? "hsl(38 92% 55%)"
-      : "hsl(var(--metric-positive))";
+      : "hsl(142 71% 45%)";
+  const soft = (a: number) => color.replace("hsl(", "hsla(").replace(")", `, ${a})`);
 
   const fmt = (d: Date) =>
     d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
@@ -39,7 +40,7 @@ export default function TokenExpiryTimeline() {
         </h3>
         <span
           className="text-[10px] px-2 py-0.5 rounded-full font-medium flex items-center gap-1"
-          style={{ background: `${color.replace(")", " / 0.12)")}`, color }}
+          style={{ background: soft(0.12), color }}
         >
           {state === "ok" ? <ShieldCheck size={10} /> : <ShieldAlert size={10} />}
           {daysLeft > 0 ? "Active" : "Expired"}
@@ -76,7 +77,7 @@ export default function TokenExpiryTimeline() {
               title={`${fmt(dayDate)} · ${remaining} day${remaining === 1 ? "" : "s"} left`}
               className="h-4 rounded-[2px]"
               style={{
-                background: isToday ? color : isPast ? "hsl(var(--muted))" : `${color.replace(")", " / 0.3)")}`,
+                background: isToday ? color : isPast ? "hsl(var(--muted))" : soft(0.28),
                 outline: isToday ? `1px solid ${color}` : "none",
               }}
             />
